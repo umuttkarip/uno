@@ -6,11 +6,10 @@ export const UNO_DURATION = 2500;
 export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry'];
 
 export class RoomAuthority {
-  constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online',scores={}} = {}) {
+  constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online'} = {}) {
     this.now = now;
     this.state = saved?.state ?? newRoom(room, newPlayer(name, token),{capacity,mode});
-    this.scores=scores;
-    if(!saved)this.restoreScore(this.state.players[0]);
+    if(this.state.round>0)this.state.roundId??=crypto.randomUUID();
     this.revision = saved?.revision ?? 0;
     this.lastActive = saved?.lastActive ?? now();
     this.lastMessages = new Map();
@@ -34,7 +33,7 @@ export class RoomAuthority {
     if (this.state.players.length >= this.state.capacity) throw new Error('Masa dolu.');
     if (this.state.phase!=='waiting') throw new Error('Bu masada oyun başladı.');
     if (this.state.players.some(p=>name.trim().toLocaleLowerCase('tr-TR') === p.name.toLocaleLowerCase('tr-TR'))) throw new Error('Farklı bir ad yaz.');
-    const player=newPlayer(name, token);this.restoreScore(player);this.state.players.push(player);
+    const player=newPlayer(name, token);this.state.players.push(player);
     if(this.state.players.length===this.state.capacity){startRound(this.state);this.restartTurn();}
     this.revision++;
     this.touch();
@@ -100,7 +99,6 @@ export class RoomAuthority {
     const changed=penalizeUno(s);if(changed)this.revision++;
     return changed;
   }
-  restoreScore(player){const score=this.scores[player.name];if(score){player.wins=Number.isSafeInteger(score.wins)&&score.wins>=0?score.wins:0;player.score=Number.isSafeInteger(score.score)&&score.score>=0?score.score:0;}}
   snapshot(index) {return {state: structuredClone(view(this.state, index)), version: this.revision, serverNow:this.now()};}
   checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining};}
   touch() {this.lastActive = this.now();}

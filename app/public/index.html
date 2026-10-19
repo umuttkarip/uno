@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10362c"><meta name="description" content="UNO"><title>UNO</title><link rel="icon" href="./favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css"><script type="module" src="./app.js"></script>
 </head>
 <body>
-<header class="header"><a class="logo" href="./" aria-label="UNO">UNO</a><div class="header-actions"><button id="score-toggle" class="score-button" aria-label="Skor" aria-expanded="false" aria-controls="score-panel" hidden>0–0</button><button id="leave" class="icon-button" aria-label="Ayrıl" title="Ayrıl" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H5v14h4M13 7l5 5-5 5m-5-5h10"/></svg></button></div></header>
+<header class="header"><a class="logo" href="./" aria-label="UNO">UNO</a><div class="header-actions"><button id="score-toggle" class="score-button" aria-label="Skor" aria-expanded="false" aria-controls="score-panel" hidden></button><button id="appearance-toggle" class="icon-button" aria-label="Görünüm" title="Görünüm" aria-expanded="false" aria-controls="appearance-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.5-3.3c-.8-.9-.2-2.2 1-2.2H17A4 4 0 0 0 21 11a9 9 0 0 0-9-8Z"/><circle cx="7" cy="10" r=".7"/><circle cx="10" cy="6.5" r=".7"/><circle cx="15" cy="7" r=".7"/><circle cx="17.5" cy="11" r=".7"/></svg></button><button id="leave" class="icon-button" aria-label="Ayrıl" title="Ayrıl" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H5v14h4M13 7l5 5-5 5m-5-5h10"/></svg></button></div></header>
 <main id="login" class="login">
 <form id="entry-form" class="entry-form" autocomplete="off">
 <div class="mode-picker" role="group" aria-label="Oyun"><button type="button" data-mode="bot" aria-pressed="false">Çevrimdışı</button><button type="button" data-mode="group" aria-pressed="true">Grup</button></div>
@@ -12,6 +12,7 @@
 <label for="room" id="room-label">Masa</label><input id="room" name="room" required>
 <button id="enter" class="enter-button" type="submit">Gir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
 <p id="entry-error" class="error" role="alert"></p>
+<section id="home-stats" class="home-stats" aria-label="İstatistiklerin" hidden><span id="stats-name"></span><div><span><strong id="stats-played"></strong> el</span><span><strong id="stats-wins"></strong> galibiyet</span><span><strong id="stats-losses"></strong> mağlubiyet</span></div></section>
 </form>
 </main>
 <main id="match" class="match" hidden>
@@ -33,6 +34,7 @@
   <form id="chat-form"><input id="message" maxlength="120" aria-label="Mesaj" placeholder="Mesaj yaz…" autocomplete="off"><button id="send" class="icon-button" type="submit" aria-label="Gönder" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 5 7 7m-7-7-7 7m7-7v15"/></svg></button></form>
 </aside>
 <aside id="score-panel" class="score-panel" aria-label="Skor" hidden><div class="chat-heading"><span>Skor</span><button id="score-close" class="icon-button" aria-label="Skoru kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><ol id="score-list" class="score-list" aria-label="Kazanılan eller"></ol></aside>
+<aside id="appearance-panel" class="appearance-panel" aria-labelledby="appearance-title" hidden><div class="chat-heading"><span id="appearance-title">Görünüm</span><button id="appearance-close" class="icon-button" aria-label="Görünümü kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div id="table-options" class="table-options" role="group" aria-label="Masa rengi"></div><div id="deck-options" class="deck-options" role="group" aria-label="Kart tasarımı"></div><div id="appearance-preview" class="appearance-preview" aria-hidden="true"></div></aside>
 <div id="messages" class="messages" aria-live="polite" aria-label="Mesajlar"></div>
 <dialog id="color-dialog" class="color-dialog" aria-label="Renk seç"><button class="color-choice red" data-color="red" aria-label="Kırmızı"></button><button class="color-choice yellow" data-color="yellow" aria-label="Sarı"></button><button class="color-choice green" data-color="green" aria-label="Yeşil"></button><button class="color-choice blue" data-color="blue" aria-label="Mavi"></button></dialog>
 <dialog id="result-dialog" class="result-dialog"><h1 id="result-name"></h1><ol id="result-scores" class="score-list" aria-label="Kazanılan eller"></ol><button id="rematch" class="enter-button">Tekrar oyna</button><button id="result-close" class="quiet-button">Kapat</button></dialog>

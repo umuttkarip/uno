@@ -6,11 +6,14 @@ import {LocalGame} from '../src/local-game.js';
 import {controls,chosenColor,feedback} from './table-state.js';
 import {unlockAudio,prepareAudio} from './card-audio.js';
 import {EXPRESSIONS,expression,expressionImage,preloadExpressions} from './expressions.js';
+import {mountAppearance} from './appearance.js';
+import {readStats,rememberPlayer,recordResult} from '../src/scores.js';
 
 const $=id=>document.getElementById(id);
 let connection,state,busy=false,entering=false,moving=false,pendingCard,resultRound=-1;
 let present=true,suppressClickUntil=0,clockOffset=0,processing=false,generation=0;
 let queue=[],chatAnimation,chatGeneration=0,chatReady=false,sending=false;
+let restylePending=false;
 const messageTimers=new Set();
 const roomParam=new URL(location.href).searchParams.get('masa');
 let mode=new URL(location.href).searchParams.get('modo')==='bot'?'bot':'group';
@@ -18,13 +21,17 @@ if(roomParam)$('room').value=roomParam;
 $('deck-face').innerHTML=back();
 const seats={top:{zone:$('opponent-zone-top'),name:$('opponent-name'),hand:$('opponent-hand')},left:{zone:$('opponent-zone-left'),name:$('left-name'),hand:$('left-hand')},right:{zone:$('opponent-zone-right'),name:$('right-name'),hand:$('right-hand')},upperLeft:{zone:$('opponent-zone-upper-left'),name:$('upper-left-name'),hand:$('upper-left-hand')},upperRight:{zone:$('opponent-zone-upper-right'),name:$('upper-right-name'),hand:$('upper-right-hand')}};
 const motion=new MultiTableMotion({hand:$('hand'),seats,discard:$('discard'),deck:$('draw'),scroll:$('hand-scroll')});
+function restyle(){if(moving){restylePending=true;return;}$('deck-face').innerHTML=back();if(state)motion.restyle(state);restylePending=false;}
+const appearance=mountAppearance({onDeckChange:restyle,onError:notice});
+function renderHistory(){const stats=readStats($('name').value.trim());$('home-stats').hidden=!stats?.played;if(!stats)return;$('stats-name').textContent=stats.name;for(const key of ['played','wins','losses'])$('stats-'+key).textContent=stats[key];}
+$('name').addEventListener('input',renderHistory);renderHistory();
 function setMode(value){mode=value==='bot'?'bot':'group';for(const button of document.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));$('room').hidden=mode==='bot';$('room-label').hidden=mode==='bot';$('room').required=mode!=='bot';}
 document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{if(!entering)setMode(button.dataset.mode);});setMode(mode);
 function setScores(open){$('score-panel').hidden=!open;$('score-toggle').setAttribute('aria-expanded',String(open));}
 function renderScores(){
   if(!state)return;
   for(const id of ['score-list','result-scores']){const list=$(id);list.replaceChildren();for(const p of state.players){const row=document.createElement('li'),name=document.createElement('span'),wins=document.createElement('strong');name.textContent=p.name;wins.textContent=p.wins;row.append(name,wins);list.append(row);}}
-  $('score-toggle').hidden=state.phase==='waiting';$('score-toggle').textContent=state.players.length>2?'Skor':state.players.map(p=>p.wins).join('–');
+  const toggle=$('score-toggle');toggle.hidden=false;toggle.replaceChildren();for(const p of state.players){const item=document.createElement('span'),name=document.createElement('span'),wins=document.createElement('b');item.className='mini-score';name.textContent=p.name;wins.textContent=p.wins;item.append(name,wins);toggle.append(item);}toggle.setAttribute('aria-label','Skor: '+state.players.map(p=>`${p.name} ${p.wins}`).join(', '));
 }
 function prepareChat(){
   if(chatReady)return;
@@ -60,6 +67,8 @@ function showLogin(message=''){
   motion.reset();
   $('login').hidden=false;$('match').hidden=true;$('match').dataset.motion='settled';$('leave').hidden=true;$('enter').disabled=false;$('entry-error').textContent=message;
   $('score-toggle').hidden=true;setScores(false);
+  document.body.dataset.players='0';
+  appearance.setBusy(false);renderHistory();
   document.body.classList.remove('disconnected');
   setChat(false,true);$('color-dialog').close();$('result-dialog').close();$('messages').replaceChildren();
   for(const timer of messageTimers)clearTimeout(timer);messageTimers.clear();
@@ -78,16 +87,19 @@ $('entry-form').addEventListener('submit',async event=>{
     onPresence:online=>{if(connection!==current)return;present=online;document.body.classList.toggle('disconnected',!online);renderControls();}
   });
   try{
+    await appearance.ensureDeck();if(connection!==current)return;restyle();
     await current.enter(name,room);if(connection!==current)return;
+    rememberPlayer(name);
     const url=new URL(location.href);url.searchParams.delete('name');url.searchParams.delete('room');
     if(mode==='bot'){url.searchParams.delete('masa');url.searchParams.set('modo','bot');}else{url.searchParams.set('masa',room);url.searchParams.set('modo','group');}
     history.replaceState(null,'',url);
     renderControls();
   }catch(error){if(connection===current)showLogin(error.message);}
-  finally{entering=false;$('enter').disabled=false;}
+  finally{entering=false;$('enter').disabled=false;renderControls();}
 });
 
 function receive(snapshot){
+  recordResult(snapshot.state);
   if(Number.isFinite(snapshot.serverNow))clockOffset=snapshot.serverNow-Date.now();
   queue.push(snapshot);
   if(!processing)void drain();
@@ -108,7 +120,7 @@ async function drain(){
     if(version!==generation)return;
     const timing=connection?.presented?.(snapshot.version);
     if(timing){state.turnDeadline=timing.turnDeadline;state.unoDeadline=timing.unoDeadline;clockOffset=timing.serverNow-Date.now();}
-    moving=false;$('match').dataset.motion='settled';renderControls();
+    moving=false;if(restylePending)restyle();$('match').dataset.motion='settled';renderControls();
     for(const event of events)showMessage(event);
     if(state.phase==='finished'&&resultRound!==state.round){resultRound=state.round;$('result-name').textContent=state.players[state.winner].name+' kazandı';$('result-dialog').showModal();}
   }
@@ -127,9 +139,11 @@ function renderLobby(){
   for(const p of state.players){const item=document.createElement('li'),name=document.createElement('span'),check=document.createElement('span');name.textContent=p.name;check.className='ready-check';check.textContent=p.ready?'✓':'';check.setAttribute('aria-label',p.ready?'Hazır':'Hazır değil');item.append(name,check);list.append(item);}
 }
 function renderControls(){
+  appearance.setBusy(busy||moving||entering);
   if(!state)return;
   $('match').dataset.phase=state.phase;
   $('match').dataset.seats=state.players.length;
+  document.body.dataset.players=state.players.length;
   const self=state.players[state.me],opponents=state.players.filter((p,i)=>i!==state.me),placements=seating(state);
   const playing=state.phase==='playing',ui=controls(state,{busy,moving,present}),{mine,blocked}=ui;
   playerName($('self-name'),self,mine);
@@ -229,4 +243,4 @@ window.addEventListener('pointermove',event=>{if(!drag)return;const delta=event.
 function endDrag(){if(drag?.moved)suppressClickUntil=Date.now()+250;drag=null;$('hand-scroll').classList.remove('dragging');}
 window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
 window.addEventListener('pagehide',()=>connection?.shutdown());
-try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem('uno-solo-v1')):roomParam?JSON.parse(sessionStorage.getItem('uno-v6:'+roomKey(roomParam))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}
+try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem('uno-solo-v1')):roomParam?JSON.parse(sessionStorage.getItem('uno-v7:'+roomKey(roomParam))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}

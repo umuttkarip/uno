@@ -1,14 +1,13 @@
 import {RoomAuthority,IDLE_LIMIT} from './room.js';
 import {botCommand} from './bot.js';
 import {validName} from './engine.js';
-import {readScores,saveScores} from './scores.js';
 export class LocalGame {
   constructor(callbacks){Object.assign(this,callbacks);this.closed=false;}
   async enter(name){
     this.name=validName(name);this.storageKey='uno-solo-v1';const room='bilgisayar:'+this.name;
     let saved;try{const previous=JSON.parse(sessionStorage.getItem(this.storageKey));if(previous?.name===this.name&&Date.now()-previous.saved.lastActive<IDLE_LIMIT)saved=previous.saved;}catch{}
     const token=saved?.state.players[0].token??crypto.randomUUID();
-    this.authority=new RoomAuthority(room,this.name,token,{saved,mode:'computer',scores:readScores(room)});
+    this.authority=new RoomAuthority(room,this.name,token,{saved,mode:'computer'});
     if(!saved){const botName=this.name.toLocaleLowerCase('tr-TR')==='bilgisayar'?'Bilgisayar 2':'Bilgisayar';this.authority.join(botName,crypto.randomUUID());this.authority.state.players[1].bot=true;}
     this.onPresence?.(true);this.publish();
     this.clock=setInterval(()=>{if(this.closed)return;if(this.authority.expired()){this.leave();this.onClose?.('Masa kapandı.');return;}if(this.presentation)return;const uno=this.authority.expireUno(),turn=this.authority.expireTurn();if(uno||turn)this.publish();this.schedule();},250);
@@ -20,7 +19,7 @@ export class LocalGame {
     const snapshot=this.authority.snapshot(0);this.version=snapshot.version;
     // The local clock and bot wait until the player has actually seen this move.
     this.presentation={version:snapshot.version,started:this.authority.now()};
-    saveScores(snapshot.state);this.save();this.onState(snapshot);
+    this.save();this.onState(snapshot);
   }
   presented(version){
     if(this.closed||this.presentation?.version!==version)return;

@@ -54,6 +54,12 @@ export class TableMotion {
 
   capture(map) {return new Map([...map].map(([id,slot])=>[id,rect(slot)]));}
 
+  restyle(state) {
+    for(const c of state.players[state.me].hand){const button=this.own.get(c.id)?.firstElementChild;if(button)button.innerHTML=face(c);}
+    for(const slot of this.other.values())slot.firstElementChild.innerHTML=face({color:'wild'},true);
+    if(state.top&&this.discard.lastElementChild)this.discard.lastElementChild.innerHTML=face(state.top);
+  }
+
   reconcile(map,container,items,opponent=false) {
     const keep=new Set(items.map(item=>item.key));
     for(const [id,slot] of map)if(!keep.has(id)){slot.remove();map.delete(id);}

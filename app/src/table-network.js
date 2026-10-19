@@ -1,7 +1,6 @@
 import Peer from 'peerjs';
 import {roomKey,validName} from './engine.js';
 import {RoomAuthority,IDLE_LIMIT} from './room.js';
-import {readScores,saveScores} from './scores.js';
 const read=key=>{try{return JSON.parse(sessionStorage.getItem(key));}catch{return null;}};
 const write=(key,value)=>{try{sessionStorage.setItem(key,JSON.stringify(value));}catch{}};
 const erase=key=>{try{sessionStorage.removeItem(key);}catch{}};
@@ -9,16 +8,16 @@ const erase=key=>{try{sessionStorage.removeItem(key);}catch{}};
 export class TableConnection {
   constructor(callbacks){Object.assign(this,callbacks);this.pending=new Map();this.connections=new Map();this.closed=false;this.version=0;this.reconnects=0;}
   async enter(name,room){
-    this.name=validName(name);this.room=validName(room,'room');this.capacity=6;this.key=roomKey(room);this.storageKey='uno-v6:'+this.key;
+    this.name=validName(name);this.room=validName(room,'room');this.capacity=6;this.key=roomKey(room);this.storageKey='uno-v7:'+this.key;
     const previous=read(this.storageKey);this.token=previous?.name===this.name?previous.token:crypto.randomUUID();
     this.saved=previous?.name===this.name&&previous.host&&previous.saved.state.mode==='group'&&Date.now()-previous.saved.lastActive<IDLE_LIMIT?previous.saved:null;
     const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(this.key));
-    this.hostId='umut-uno-v6-'+Array.from(new Uint8Array(hash)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,48);
+    this.hostId='umut-uno-v7-'+Array.from(new Uint8Array(hash)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,48);
     return new Promise((resolve,reject)=>{this.resolveEntry=resolve;this.rejectEntry=reject;this.entryTimer=setTimeout(()=>this.fail('Bağlantı kurulamadı. Tekrar dene.'),25000);this.claim();});
   }
   claim(){
     if(this.closed)return;const peer=this.peer=new Peer(this.hostId,{debug:0});
-    peer.on('open',()=>{if(this.closed)return;this.host=true;this.authority=new RoomAuthority(this.room,this.name,this.token,{saved:this.saved,capacity:this.capacity,mode:'group',scores:readScores(this.room)});this.authority.pauseTurn();peer.on('connection',conn=>this.accept(conn));this.publish();this.finishEntry();this.startClock();});
+    peer.on('open',()=>{if(this.closed)return;this.host=true;this.authority=new RoomAuthority(this.room,this.name,this.token,{saved:this.saved,capacity:this.capacity,mode:'group'});this.authority.pauseTurn();peer.on('connection',conn=>this.accept(conn));this.publish();this.finishEntry();this.startClock();});
     peer.on('error',error=>{if(this.closed||this.peer!==peer)return;if(error.type==='unavailable-id'&&!this.host){peer.destroy();this.becomeGuest();}else this.peerError(error);});
     peer.on('disconnected',()=>this.reconnectSignaling(peer));
   }
@@ -34,7 +33,7 @@ export class TableConnection {
       if(this.closed||this.conn!==conn||!this.validPacket(data))return;
       if(data.type==='state'){
         clearTimeout(timeout);if(!this.joined){this.joined=true;this.reconnects=0;this.finishEntry();this.startClock();}
-        this.lastSnapshot=data;this.version=data.version;this.lastActivity=Date.now();this.onPresence?.(data.state.players.every(p=>p.online));this.saveGuest();this.onState(data);saveScores(data.state);if(data.ack)this.settle(data.ack);
+        this.lastSnapshot=data;this.version=data.version;this.lastActivity=Date.now();this.onPresence?.(data.state.players.every(p=>p.online));this.saveGuest();this.onState(data);if(data.ack)this.settle(data.ack);
       }else if(data.type==='message'){this.lastActivity=Date.now();this.onMessage(data.message);if(data.ack)this.settle(data.ack);}
       else if(data.type==='error'){if(data.ack)this.settle(data.ack,data.message);else if(!this.joined)this.fail(data.message);else this.onError(data.message);}
       else if(data.type==='leave')this.finishClose('Masa kapandı.');
@@ -73,7 +72,7 @@ export class TableConnection {
   publish(ack,ackIndex){
     if(this.closed)return;this.syncPresence();const own=this.authority.snapshot(0);this.version=own.version;this.lastSnapshot=own;this.onState(own);
     for(const [index,conn]of this.connections)this.send(conn,{type:'state',...this.authority.snapshot(index),...(index===ackIndex&&ack?{ack}:{})});
-    saveScores(own.state);this.saveHost();
+    this.saveHost();
   }
   async action(command){if(this.closed||!this.joined)throw new Error('Bağlantı kesildi.');if(this.host){this.authority.play(0,command,this.version);this.publish();}else return this.command({type:'action',command,version:this.version});}
   async message(message){if(this.closed||(this.host?!this.connections.size:!this.joined))throw new Error('Bağlantı kesildi.');if(this.host){const event=this.authority.message(0,message);this.onMessage(event);this.broadcast({type:'message',message:event});this.saveHost();}else return this.command({type:'message',message});}

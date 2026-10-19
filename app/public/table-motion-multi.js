@@ -1,5 +1,5 @@
 import {TableMotion,planTransition,PLAY_DURATION,FOLLOWUP_DELAY} from './table-motion.js';
-import {card} from './cards.js';
+import {card,face} from './cards.js';
 import {cardSound} from './card-audio.js';
 const rect=node=>node?.getBoundingClientRect();
 const usable=box=>box&&box.width>1&&box.height>1;
@@ -11,6 +11,7 @@ export function seating(state){
 export class MultiTableMotion extends TableMotion {
   constructor(args){super({...args,opponent:args.seats.top.hand});this.seats=args.seats;this.rivals=new Map();}
   reset(){super.reset();for(const rival of this.rivals.values()){rival.nodes.clear();rival.container.replaceChildren();}this.rivals.clear();}
+  restyle(state){super.restyle(state);for(const rival of this.rivals.values())for(const slot of rival.nodes.values())slot.firstElementChild.innerHTML=face({color:'wild'},true);}
   async update(previous,state,{present=true}={}){
     const generation=this.generation,plan=planTransition(previous,state),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const placements=seating(state),narrow=matchMedia('(max-width:700px)').matches;

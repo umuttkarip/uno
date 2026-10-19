@@ -37,7 +37,7 @@ function take(s,n) {
 }
 export function startRound(s) {
   if(s.players.length<2||s.players.length>(s.capacity??2)||(s.mode!=='group'&&s.players.length!==(s.capacity??2))) throw new Error('Diğer oyuncular bekleniyor.');
-  s.deck=deck();s.pile=[];s.round++;s.phase='playing';s.turn=(s.round-1)%s.players.length;s.direction=1;s.color=null;s.winner=null;s.vulnerable=null;s.unoDeadline=null;s.drawnId=null;s.pendingDraw=null;s.finishOrder=[];s.lastUnoPenalty=null;s.lastUnoCall=null;
+  s.deck=deck();s.pile=[];s.round++;s.roundId=crypto.randomUUID();s.phase='playing';s.turn=(s.round-1)%s.players.length;s.direction=1;s.color=null;s.winner=null;s.vulnerable=null;s.unoDeadline=null;s.drawnId=null;s.pendingDraw=null;s.finishOrder=[];s.lastUnoPenalty=null;s.lastUnoCall=null;
   for(const p of s.players) {p.hand=take(s,7);p.ready=false;p.uno=false;}
   let first=s.deck.findIndex(c=>/^\d$/.test(c.value));s.pile=[s.deck.splice(first,1)[0]];s.color=s.pile[0].color;
   log(s,`${s.round}. el başladı. İlk sıra ${s.players[s.turn].name} adlı oyuncuda.`);

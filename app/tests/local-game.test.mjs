@@ -53,7 +53,7 @@ test('accepting a final +2 draws exactly two, awards one win, and rematches only
   assert.equal(s.players[0].hand.length,4);assert.equal(s.pendingDraw,null);assert.equal(s.winner,1);assert.equal(s.players[1].wins,1);
   const round=s.round;q.ack();await q.game.action({type:'ready',round});q.tick(3000);assert.equal(s.round,round);
   q.ack();q.tick(750);assert.equal(s.round,round+1);assert.equal(s.players[1].wins,1);assert.deepEqual(s.players.map(p=>p.hand.length),[7,7]);
-  const saved=JSON.parse(localStorage.getItem('uno-scores-v1:bilgisayar:a'));assert.equal(saved.Bilgisayar.wins,1);
+  q.game.leave();await q.game.enter('A');assert.deepEqual(q.game.authority.state.players.map(p=>p.wins),[0,0]);
 });
 
 test('a final penalty grants a full response turn after landing, then times out only once',async t=>{
