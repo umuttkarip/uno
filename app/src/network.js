@@ -40,6 +40,7 @@ export class TableConnection {
       if (this.closed) return;
       this.host = true;
       this.authority = new RoomAuthority(this.room, this.name, this.token, {saved: this.saved});
+      this.onPresence?.(false);
       peer.on('connection', conn => this.accept(conn));
       this.publish();
       this.finishEntry();

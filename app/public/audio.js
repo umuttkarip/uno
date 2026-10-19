@@ -2,7 +2,7 @@ let context, noise;
 export async function unlockAudio() {
   try {
     context ??= new (window.AudioContext || window.webkitAudioContext)();
-    if (context.state !== 'running') await context.resume();
+    if (context.state !== 'running') context.resume().catch(() => {});
     if (!noise) {
       noise = context.createBuffer(1, Math.ceil(context.sampleRate * .35), context.sampleRate);
       const samples = noise.getChannelData(0);

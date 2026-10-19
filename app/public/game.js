@@ -1,5 +1,5 @@
 import {TableConnection} from '../src/network.js';
-import {COLORS} from '../src/engine.js';
+import {COLORS, roomKey, LABELS} from '../src/engine.js';
 import {EMOTES} from '../src/room.js';
 import {card, back} from './cards.js';
 import {unlockAudio, cardSound} from './audio.js';
@@ -42,7 +42,7 @@ $('entry-form').addEventListener('submit',async e=>{
   try{
     await current.enter(name,room);if(connection!==current)return;
     $('login').hidden=true;$('match').hidden=false;$('leave').hidden=false;
-    const url=new URL(location.href);url.searchParams.set('masa',room);history.replaceState(null,'',url);
+    const url=new URL(location.href);url.searchParams.delete('name');url.searchParams.delete('room');url.searchParams.set('masa',room);history.replaceState(null,'',url);
     render();
   }catch(error){if(connection===current)showLogin(error.message);}
   finally{entering=false;$('enter').disabled=false;}
@@ -79,7 +79,7 @@ function render(){
   if(state.top&&topKey!==state.top.id+':'+state.round){
     topKey=state.top.id+':'+state.round;$('discard').innerHTML=card(state.top);
     if(previousMove!==undefined)$('discard').firstElementChild.classList.add('new-card');
-    $('discard').setAttribute('aria-label',`${({red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi',wild:'Joker'})[state.top.color]} ${state.top.value}`);
+    $('discard').setAttribute('aria-label',`${({red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi',wild:'Joker'})[state.top.color]} ${LABELS[state.top.value]??state.top.value}`);
   }
   $('discard').classList.toggle('joker',state.top?.color==='wild');
   if(COLORS.includes(state.color))$('discard').style.setProperty('--chosen-color',`var(--${state.color})`);
@@ -158,3 +158,7 @@ window.addEventListener('pointermove',e=>{
 function endDrag(){if(drag?.moved)suppressClickUntil=Date.now()+250;drag=null;$('hand-scroll').classList.remove('dragging');}
 window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
 window.addEventListener('pagehide',()=>connection?.shutdown());
+try {
+  const saved=roomParam?JSON.parse(sessionStorage.getItem('uno-v2:'+roomKey(roomParam))):null;
+  if(saved?.name===remembered&&saved.token)$('entry-form').requestSubmit();
+} catch {}
