@@ -19,12 +19,12 @@ export class TableConnection {
     this.name = validName(name);
     this.room = validName(room, 'room');
     this.key = roomKey(room);
-    this.storageKey = 'uno-v2:' + this.key;
+    this.storageKey = 'uno-v3:' + this.key;
     const previous = read(this.storageKey);
     this.token = previous?.name === this.name ? previous.token : crypto.randomUUID();
     this.saved = previous?.name === this.name && previous.host && Date.now() - previous.saved.lastActive < IDLE_LIMIT ? previous.saved : null;
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(this.key));
-    this.hostId = 'umut-uno-v2-' + Array.from(new Uint8Array(hash)).map(n => n.toString(16).padStart(2, '0')).join('').slice(0, 48);
+    this.hostId = 'umut-uno-v3-' + Array.from(new Uint8Array(hash)).map(n => n.toString(16).padStart(2, '0')).join('').slice(0, 48);
     return new Promise((resolve, reject) => {
       this.resolveEntry = resolve;
       this.rejectEntry = reject;
@@ -40,6 +40,7 @@ export class TableConnection {
       if (this.closed) return;
       this.host = true;
       this.authority = new RoomAuthority(this.room, this.name, this.token, {saved: this.saved});
+      this.authority.pauseTurn();
       this.onPresence?.(false);
       peer.on('connection', conn => this.accept(conn));
       this.publish();
@@ -114,6 +115,7 @@ export class TableConnection {
           const old = this.conn;
           this.conn = conn;
           this.joined = true;
+          this.authority.resumeTurn();
           this.onPresence?.(true);
           if (old && old !== conn) old.close();
           this.publish();
@@ -141,7 +143,9 @@ export class TableConnection {
       clearTimeout(timeout);
       if (this.closed || this.conn !== conn) return;
       this.joined = false;
+      this.authority.pauseTurn();
       this.onPresence?.(false);
+      this.publish();
       this.offlineTimer = setTimeout(() => {if (!this.joined) this.finishClose('Bağlantı kesildi.');}, 30000);
     });
     conn.on('error', () => {});
@@ -205,7 +209,8 @@ export class TableConnection {
     this.clock = setInterval(() => {
       if (this.closed) return;
       if (this.host ? this.authority.expired() : Date.now() - this.lastActivity >= IDLE_LIMIT) {this.send(this.conn, {type: 'leave'}); this.finishClose();}
-    }, 5000);
+      else if (this.host && this.joined && this.authority.expireTurn()) this.publish();
+    }, 250);
   }
 
   fail(message) {if (this.closed) return; const reject = this.rejectEntry; this.rejectEntry = null; this.resolveEntry = null; this.shutdown(); if (reject) reject(new Error(message)); else this.onClose?.(message);}

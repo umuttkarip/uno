@@ -1,7 +1,14 @@
 import {build} from 'esbuild';
-import {mkdir,copyFile,writeFile} from 'node:fs/promises';
+import {mkdir,copyFile,writeFile,readFile,cp} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 await mkdir('site',{recursive:true});
 await build({entryPoints:['public/game.js'],bundle:true,format:'esm',target:['es2022'],outfile:'site/app.js',minify:true,legalComments:'eof'});
-for(const file of ['index.html','style.css','favicon.svg'])await copyFile('public/'+file,'site/'+file);
+const css=await readFile('public/style.css','utf8')+'\n'+await readFile('public/polish.css','utf8');
+await writeFile('site/style.css',css);
+const hash=createHash('sha256').update(await readFile('site/app.js')).update(css).digest('hex').slice(0,12);
+const html=(await readFile('public/index.html','utf8')).replace('./app.js','./app.js?v='+hash).replace('./style.css','./style.css?v='+hash);
+await writeFile('site/index.html',html);
+await copyFile('public/favicon.svg','site/favicon.svg');
+await cp('public/assets','site/assets',{recursive:true});
 await writeFile('site/.nojekyll','');
 console.log('GitHub Pages: site/');

@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {extname, resolve, sep} from 'node:path';
 import {networkInterfaces} from 'node:os';
 const root=resolve('site');
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.txt':'text/plain; charset=utf-8'};
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.wav':'audio/wav','.txt':'text/plain; charset=utf-8'};
 const server=createServer(async(req,res)=>{
  try {
   const url=new URL(req.url,'http://localhost');
