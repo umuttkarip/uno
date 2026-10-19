@@ -4,19 +4,22 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10362c"><meta name="description" content="UNO"><title>UNO</title><link rel="icon" href="./favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css"><script type="module" src="./app.js"></script>
 </head>
 <body>
-<header class="header"><a class="logo" href="./" aria-label="UNO">UNO</a><button id="leave" class="icon-button" aria-label="Ayrıl" title="Ayrıl" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H5v14h4M13 7l5 5-5 5m-5-5h10"/></svg></button></header>
+<header class="header"><a class="logo" href="./" aria-label="UNO">UNO</a><div class="header-actions"><button id="score-toggle" class="score-button" aria-label="Skor" aria-expanded="false" aria-controls="score-panel" hidden>0–0</button><button id="leave" class="icon-button" aria-label="Ayrıl" title="Ayrıl" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H5v14h4M13 7l5 5-5 5m-5-5h10"/></svg></button></div></header>
 <main id="login" class="login">
 <form id="entry-form" class="entry-form" autocomplete="off">
+<div class="mode-picker" role="group" aria-label="Oyun"><button type="button" data-mode="2" aria-pressed="true">2 kişi</button><button type="button" data-mode="4" aria-pressed="false">4 kişi</button><button type="button" data-mode="bot" aria-pressed="false">Bilgisayar</button></div>
 <label for="name">Ad</label><input id="name" name="name" autocomplete="nickname" required>
-<label for="room">Masa</label><input id="room" name="room" required>
+<label for="room" id="room-label">Masa</label><input id="room" name="room" required>
 <button id="enter" class="enter-button" type="submit">Gir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
 <p id="entry-error" class="error" role="alert"></p>
 </form>
 </main>
 <main id="match" class="match" hidden>
-<section class="opponent-zone" aria-label="Rakip"><div class="player-name" id="opponent-name"></div><div id="opponent-hand" class="opponent-hand"></div></section>
+<section id="opponent-zone-top" class="opponent-zone" aria-label="Karşı oyuncu"><div class="player-name" id="opponent-name"></div><div id="opponent-hand" class="opponent-hand"></div></section>
+<section id="opponent-zone-left" class="opponent-zone side-zone seat-left" aria-label="Soldaki oyuncu" hidden><div class="player-name" id="left-name"></div><div id="left-hand" class="opponent-hand"></div></section>
+<section id="opponent-zone-right" class="opponent-zone side-zone seat-right" aria-label="Sağdaki oyuncu" hidden><div class="player-name" id="right-name"></div><div id="right-hand" class="opponent-hand"></div></section>
 <section class="center-zone" aria-label="Oyun alanı">
-<div id="waiting" class="waiting" role="status"><span class="waiting-dots" aria-hidden="true"><i></i><i></i><i></i></span><p>1 oyuncu daha bekleniyor</p></div>
+<div id="waiting" class="waiting" role="status"><span class="waiting-dots" aria-hidden="true"><i></i><i></i><i></i></span><p id="waiting-text">1 oyuncu daha bekleniyor</p></div>
 <div id="piles" class="piles" hidden><button id="draw" class="draw-pile" aria-label="Kart çek"><span class="deck-edge edge-two"></span><span class="deck-edge edge-one"></span><span id="deck-face"></span></button><div id="discard" class="discard-pile" role="img"></div></div>
 </section>
 <section class="self-zone" aria-label="Elin"><div id="self-name" class="player-name"></div><div id="hand-scroll" class="hand-scroll"><div id="hand" class="hand"></div></div><div class="controls"><div class="control-start"><button id="pass" class="quiet-button" hidden>Pas</button><button id="catch" class="quiet-button catch-button" hidden>Yakala</button></div><button id="uno" class="uno-button" disabled aria-pressed="false">UNO</button><div class="control-end"><button id="chat-toggle" class="icon-button" aria-label="Sohbet" aria-expanded="false" aria-controls="chat-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 11.5c0 4.1-3.6 7.5-8 7.5H8l-4 3v-6.4a7.2 7.2 0 0 1-1-4.1C3 7.4 6.6 4 11 4s9 3.4 9 7.5Z"/><path d="M7.5 11.5h.1m4.4 0h.1m4.4 0h.1" stroke-width="2.8" stroke-linecap="round"/></svg></button></div></div></section>
@@ -27,8 +30,9 @@
   <div id="emotes" class="emotes" role="group" aria-label="İfadeler"></div>
   <form id="chat-form"><input id="message" maxlength="120" aria-label="Mesaj" placeholder="Mesaj yaz…" autocomplete="off"><button id="send" class="icon-button" type="submit" aria-label="Gönder" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 5 7 7m-7-7-7 7m7-7v15"/></svg></button></form>
 </aside>
+<aside id="score-panel" class="score-panel" aria-label="Skor" hidden><div class="chat-heading"><span>Skor</span><button id="score-close" class="icon-button" aria-label="Skoru kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><ol id="score-list" class="score-list" aria-label="Kazanılan eller"></ol></aside>
 <div id="messages" class="messages" aria-live="polite" aria-label="Mesajlar"></div><div id="notice" class="notice" role="alert" hidden></div>
 <dialog id="color-dialog" class="color-dialog" aria-label="Renk seç"><button class="color-choice red" data-color="red" aria-label="Kırmızı"></button><button class="color-choice yellow" data-color="yellow" aria-label="Sarı"></button><button class="color-choice green" data-color="green" aria-label="Yeşil"></button><button class="color-choice blue" data-color="blue" aria-label="Mavi"></button></dialog>
-<dialog id="result-dialog" class="result-dialog"><h1 id="result-name"></h1><button id="rematch" class="enter-button">Tekrar oyna</button><button id="result-close" class="quiet-button">Kapat</button></dialog>
+<dialog id="result-dialog" class="result-dialog"><h1 id="result-name"></h1><ol id="result-scores" class="score-list" aria-label="Kazanılan eller"></ol><button id="rematch" class="enter-button">Tekrar oyna</button><button id="result-close" class="quiet-button">Kapat</button></dialog>
 </body>
 </html>

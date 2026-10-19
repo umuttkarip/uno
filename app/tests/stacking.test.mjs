@@ -6,7 +6,7 @@ import {planTransition} from '../public/table-motion.js';
 
 const c=(color,value)=>({id:crypto.randomUUID(),color,value});
 function game(a,b){const s=newRoom('Masa',newPlayer('A','host'));s.players.push(newPlayer('B','guest'));startRound(s);s.color='red';s.pile=[c('red','7')];s.players[0].hand=a;s.players[1].hand=b;return s;}
-const play=(s,index,card,color='blue',extra={})=>act(s,index,{type:'play',cardId:card.id,color,...extra});
+const play=(s,index,card,color='blue',extra={})=>act(s,index,{type:'play',cardId:card.id,color,uno:true,...extra});
 const unchanged=(s,action)=>{const before=structuredClone(s);assert.throws(action);assert.deepEqual(s,before);};
 
 test('+2 can be answered with +4 even if the responder holds the active color',()=>{
@@ -77,7 +77,7 @@ test('accepting a penalty reshuffles old discards without losing cards or changi
 });
 
 test('UNO announcement and catching a missed UNO do not replace the pending card penalty',()=>{
-  const two=c('red','draw2'),four=c('wild','wild4');const s=game([two,c('blue','8')],[four,c('red','9')]);play(s,0,two);
+  const two=c('red','draw2'),four=c('wild','wild4');const s=game([two,c('blue','8')],[four,c('red','9')]);play(s,0,two,'blue',{uno:false});
   act(s,1,{type:'catch'});assert.equal(s.players[0].hand.length,3);assert.equal(s.pendingDraw.count,2);assert.equal(s.turn,1);play(s,1,four,'green',{uno:true});
   assert.equal(s.players[1].uno,true);assert.equal(s.pendingDraw.count,6);
 });
@@ -85,7 +85,7 @@ test('UNO announcement and catching a missed UNO do not replace the pending card
 test('penalty timeout takes the whole accumulated amount, not one card or a second draw',()=>{
   let now=1000;const room=new RoomAuthority('Masa','A',crypto.randomUUID(),{now:()=>now});room.join('B',crypto.randomUUID());
   const two=c('red','draw2'),four=c('wild','wild4');const s=room.state;s.color='red';s.pile=[c('red','7')];s.players[0].hand=[two,c('blue','8')];s.players[1].hand=[four,c('red','9')];
-  room.play(0,{type:'play',cardId:two.id},room.revision);room.play(1,{type:'play',cardId:four.id,color:'blue'},room.revision);
+  room.play(0,{type:'play',cardId:two.id,uno:true},room.revision);room.play(1,{type:'play',cardId:four.id,color:'blue',uno:true},room.revision);
   now+=TURN_DURATION;assert.equal(room.expireTurn(),true);assert.equal(s.players[0].hand.length,7);assert.equal(s.turn,1);assert.equal(s.pendingDraw,null);
   assert.equal(room.expireTurn(),false);assert.equal(s.players[0].hand.length,7);
 });

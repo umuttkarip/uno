@@ -1,19 +1,24 @@
-import {act, newPlayer, newRoom, startRound, validName, view} from './engine.js';
+import {act, newPlayer, newRoom, startRound, validName, view,penalizeUno} from './engine.js';
 
 export const IDLE_LIMIT = 20 * 60 * 1000;
 export const TURN_DURATION = 30 * 1000;
+export const UNO_DURATION = 2500;
 export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry'];
 
 export class RoomAuthority {
-  constructor(room, name, token, {now = Date.now, saved} = {}) {
+  constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online',scores={}} = {}) {
     this.now = now;
-    this.state = saved?.state ?? newRoom(room, newPlayer(name, token));
+    this.state = saved?.state ?? newRoom(room, newPlayer(name, token),{capacity,mode});
+    this.scores=scores;
+    if(!saved)this.restoreScore(this.state.players[0]);
     this.revision = saved?.revision ?? 0;
     this.lastActive = saved?.lastActive ?? now();
     this.lastMessages = new Map();
     this.remaining = saved?.remaining ?? null;
     this.state.turnDeadline ??= null;
     this.state.pendingDraw ??= null;
+    this.state.unoDeadline ??= null;
+    this.unoRemaining=saved?.unoRemaining??null;
   }
 
   join(name, token) {
@@ -26,26 +31,28 @@ export class RoomAuthority {
       this.touch();
       return existing;
     }
-    if (this.state.players.length === 2) throw new Error('Masa dolu.');
-    if (name.trim().toLocaleLowerCase('tr-TR') === this.state.players[0].name.toLocaleLowerCase('tr-TR')) throw new Error('Farklı bir ad yaz.');
-    this.state.players.push(newPlayer(name, token));
-    startRound(this.state);
-    this.restartTurn();
+    if (this.state.players.length >= this.state.capacity) throw new Error('Masa dolu.');
+    if (this.state.players.some(p=>name.trim().toLocaleLowerCase('tr-TR') === p.name.toLocaleLowerCase('tr-TR'))) throw new Error('Farklı bir ad yaz.');
+    const player=newPlayer(name, token);this.restoreScore(player);this.state.players.push(player);
+    if(this.state.players.length===this.state.capacity){startRound(this.state);this.restartTurn();}
     this.revision++;
     this.touch();
-    return 1;
+    return this.state.players.length-1;
   }
 
   play(index, command, revision) {
     if (this.expired()) throw new Error('Masa kapandı.');
     if (this.expireTurn()) return false;
-    if (revision !== this.revision) throw new Error('Tekrar dene.');
+    if (this.expireUno()) return false;
+    const sameRoundReady=command?.type==='ready'&&command.round===this.state.round&&this.state.phase==='finished';
+    if (revision !== this.revision&&!sameRoundReady) throw new Error('Tekrar dene.');
     if (!['play','draw','pass','uno','catch','ready'].includes(command?.type)) throw new Error('Geçersiz hamle.');
     act(this.state, index, command);
+    if(this.state.vulnerable!==null&&!this.state.unoDeadline)this.state.unoDeadline=this.now()+UNO_DURATION;
     if (!['uno','catch'].includes(command.type)) this.restartTurn();
     this.state.players[index].seen = this.now();
     this.revision++;
-    this.touch();
+    if(!this.state.players[index].bot)this.touch();
   }
 
   message(index, {text, emote}) {
@@ -60,11 +67,13 @@ export class RoomAuthority {
 
   restartTurn() {this.state.turnDeadline = this.state.phase === 'playing' ? this.now() + TURN_DURATION : null; this.remaining = null;}
   pauseTurn() {
+    if(this.state.unoDeadline){this.unoRemaining=Math.max(250,this.state.unoDeadline-this.now());this.state.unoDeadline=null;}
     if (this.state.phase !== 'playing' || !this.state.turnDeadline) return;
     this.remaining = Math.max(1000, this.state.turnDeadline - this.now());
     this.state.turnDeadline = null;
   }
   resumeTurn() {
+    if(this.unoRemaining!==null&&this.state.vulnerable!==null){this.state.unoDeadline=this.now()+this.unoRemaining;this.unoRemaining=null;}
     if (this.state.phase !== 'playing' || this.state.turnDeadline) return;
     this.state.turnDeadline = this.now() + Math.max(5000, this.remaining ?? TURN_DURATION);
     this.remaining = null;
@@ -83,8 +92,15 @@ export class RoomAuthority {
     this.restartTurn();
     return true;
   }
+  expireUno() {
+    const s=this.state;
+    if(this.expired()||s.phase!=='playing'||!s.unoDeadline||this.now()<s.unoDeadline)return false;
+    const changed=penalizeUno(s);if(changed)this.revision++;
+    return changed;
+  }
+  restoreScore(player){const score=this.scores[player.name];if(score){player.wins=Number.isSafeInteger(score.wins)&&score.wins>=0?score.wins:0;player.score=Number.isSafeInteger(score.score)&&score.score>=0?score.score:0;}}
   snapshot(index) {return {state: structuredClone(view(this.state, index)), version: this.revision, serverNow:this.now()};}
-  checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining};}
+  checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining};}
   touch() {this.lastActive = this.now();}
   expired() {return this.now() - this.lastActive >= IDLE_LIMIT;}
 }

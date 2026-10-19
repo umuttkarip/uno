@@ -6,8 +6,8 @@ const rect=node=>node?.getBoundingClientRect();
 const usable=box=>box&&box.width>1&&box.height>1;
 
 export function planTransition(previous,next) {
-  const self=next.players[next.me], opponent=next.players[1-next.me];
-  const oldSelf=previous?.players[previous.me], oldOpponent=previous?.players[1-previous.me];
+  const self=next.players[next.me];
+  const oldSelf=previous?.players[previous.me];
   const deal=next.round>0&&(!previous||previous.round!==next.round);
   const before=deal?[]:oldSelf?.hand??[];
   const beforeIds=new Set(before.map(c=>c.id));
@@ -16,11 +16,12 @@ export function planTransition(previous,next) {
   const played=topChanged&&!deal&&next.lastMove?.type==='play';
   const ownPlayed=played?before.find(c=>c.id===next.top.id):null;
   const opponentPlayed=!!played&&!ownPlayed;
+  const opponents=next.players.flatMap((p,index)=>index===next.me?[]:[{index,count:p.count,oldCount:deal?0:previous?.players[index]?.count??0,played:opponentPlayed&&next.lastMove.player===index}]).map(p=>({...p,added:Math.max(0,p.count-p.oldCount+(p.played?1:0))}));
   return {
     deal,topChanged,ownPlayed,opponentPlayed,
     added:self.hand.filter(c=>!beforeIds.has(c.id)),
     removed:before.filter(c=>!afterIds.has(c.id)),
-    opponentAdded:Math.max(0,(opponent?.count??0)-(deal?0:oldOpponent?.count??0)+(opponentPlayed?1:0))
+    opponents,opponentAdded:opponents.reduce((n,p)=>n+p.added,0)
   };
 }
 

@@ -2,6 +2,26 @@
 .match{width:100%;min-width:0;grid-template-columns:minmax(0,1fr)}
 .self-zone,.opponent-zone,.center-zone{min-width:0;max-width:100%}
 .hand-scroll{min-width:0;max-width:100%}
+.match{position:relative}
+.header-actions{display:flex;align-items:center;gap:14px}
+.mode-picker{display:flex;gap:4px;padding:4px;margin:0 0 26px;background:#09291f66;border:1px solid #cfdecc22;border-radius:9px}
+.mode-picker button{flex:1;min-width:0;min-height:40px;padding:8px 9px;border-radius:5px;font-size:13px;background:transparent;color:#c4d4c5;transition:background 180ms ease-out,color 180ms ease-out}
+.mode-picker button[aria-pressed="true"]{background:#e7ecd9;color:#193e2e}
+.entry-form>.mode-picker+label{margin-top:0}
+.score-button{padding:8px 10px;min-height:38px;min-width:44px;background:transparent;border-radius:6px;font-size:14px;font-variant-numeric:tabular-nums;color:#dce7d6}
+.score-button:hover{background:#ffffff0b}
+.score-panel{position:fixed;top:62px;right:28px;z-index:12;width:min(280px,calc(100vw - 32px));padding:12px 16px 16px;border:1px solid #a3b8a540;border-radius:12px;background:#16382e;box-shadow:0 12px 32px #031b1444}
+.score-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;text-align:left}
+.score-list li{display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:14px;line-height:1.45}
+.score-list li>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score-list strong{font-weight:500;font-variant-numeric:tabular-nums;color:#edf1e2}
+.result-dialog .score-list{margin:-8px 0 26px;padding:0 2px}
+.uno-button.calling{box-shadow:0 0 0 2px #f2f0d866;background:#f0f0df}
+.side-zone{position:absolute;top:18%;width:150px;z-index:2;gap:15px;padding-top:0}
+.seat-left{left:36px}.seat-right{right:36px}
+.side-zone .opponent-hand{flex-direction:column;align-items:center;height:auto;width:90px;padding-left:0;padding-top:48px;max-width:none}
+.side-zone .opponent-slot{--card-width:48px;margin-left:0;margin-top:-48px}
+.side-zone .opponent-slot>.card{transform:translateY(var(--offset)) rotate(calc(var(--rotation) + 90deg))}
 .card-slot,.opponent-slot{position:relative;flex:none;width:var(--card-width);height:calc(var(--card-width)*1.5)}
 .card-slot{margin-right:calc(-1*var(--overlap))}
 .card-slot>.card{--lift:0px;transform:translateY(calc(var(--offset) + var(--lift))) rotate(var(--rotation));transition:transform 340ms cubic-bezier(.22,.8,.25,1),box-shadow 300ms ease-out;filter:none;opacity:1}
@@ -62,7 +82,9 @@
 @media(hover:hover) and (pointer:fine){.card-slot:has(>.card.playable:hover){z-index:3}.card-slot>.card.playable:hover{--lift:-9px;box-shadow:1px 2px 0 #e2e6d6,0 13px 18px #051a1560,0 0 0 1px #f5f5db55}.sticker-choice:hover{background:#e2ead614;border-color:#dae5d32b;transform:translateY(-2px)}#send:not(:disabled):hover{background:#f0f3e3}}
 @media(min-width:1500px) and (min-height:850px){.opponent-slot{--card-width:60px}}
 @media(max-width:700px){.card-slot{--card-width:81px}.opponent-slot{--card-width:46px;margin-left:-25px}.chat-panel{right:16px;bottom:66px}#message{font-size:16px}}
+@media(max-width:700px){.header-actions{gap:8px}.score-panel{top:54px;right:16px}.match[data-seats="4"]>#opponent-zone-top{width:33.333%;justify-self:center}.match[data-seats="4"]>.side-zone{top:0;width:33.333%;gap:13px}.seat-left{left:0}.seat-right{right:0}.match[data-seats="4"] .opponent-hand{height:86px;width:auto;max-width:100%;flex-direction:row;align-items:flex-start;padding-top:0;padding-left:18px}.match[data-seats="4"] .opponent-slot{--card-width:32px;margin-top:0;margin-left:-18px}.match[data-seats="4"] .opponent-slot>.card{transform:translateY(var(--offset)) rotate(var(--rotation))}.match[data-seats="4"] .opponent-zone .player-name{font-size:12px;max-width:calc(100% - 12px)}}
 @media(max-height:650px){.card-slot{--card-width:73px}.opponent-slot{--card-width:40px;margin-left:-22px}}
 @media(max-height:480px) and (min-width:600px){.card-slot{--card-width:54px}.opponent-slot{--card-width:35px}.chat-panel{max-height:calc(100dvh - 36px);overflow-y:auto;scrollbar-width:none;bottom:18px}}
+@media(max-height:480px) and (min-width:701px){.side-zone{top:20%;gap:5px}.side-zone .opponent-slot{--card-width:32px;margin-top:-36px}.side-zone .opponent-hand{padding-top:36px}.side-zone .player-name{font-size:12px}.seat-left{left:12px}.seat-right{right:12px}}
 @media(max-height:550px){.sticker-choice{height:78px}.sticker-choice img{width:82px;height:66px}.chat-panel{max-height:calc(100dvh - 80px)}.chat-heading{margin-bottom:6px}.emotes{margin:8px 0}}
 @media(prefers-reduced-motion:reduce){.card-slot>.card,.opponent-slot>.card{transition:box-shadow 120ms ease-out}.card-flight{display:none}}
