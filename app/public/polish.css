@@ -1,4 +1,7 @@
 /* Cards keep their DOM nodes and their full printed color on every turn. */
+.match{width:100%;min-width:0;grid-template-columns:minmax(0,1fr)}
+.self-zone,.opponent-zone,.center-zone{min-width:0;max-width:100%}
+.hand-scroll{min-width:0;max-width:100%}
 .card-slot,.opponent-slot{position:relative;flex:none;width:var(--card-width);height:calc(var(--card-width)*1.5)}
 .card-slot{margin-right:calc(-1*var(--overlap))}
 .card-slot>.card{--lift:0px;transform:translateY(calc(var(--offset) + var(--lift))) rotate(var(--rotation));transition:transform 340ms cubic-bezier(.22,.8,.25,1),box-shadow 300ms ease-out;filter:none;opacity:1}
