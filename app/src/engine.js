@@ -24,7 +24,7 @@ export function validName(name, type='player') {
   return n;
 }
 export function newPlayer(name,token) {return {name:validName(name),token,hand:[],score:0,wins:0,seen:Date.now(),ready:false,uno:false};}
-export function newRoom(name, player, {capacity=2,mode='online'}={}) {return {name:validName(name,'room'),capacity:capacity===4?4:2,mode,players:[player],phase:'waiting',round:0,turn:0,direction:1,drawnId:null,pendingDraw:null,finishOrder:[],deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,unoDeadline:null,winner:null,lastMove:null};}
+export function newRoom(name, player, {capacity=2,mode='online'}={}) {return {name:validName(name,'room'),capacity:capacity===4?4:2,mode,players:[player],phase:'waiting',round:0,turn:0,direction:1,drawnId:null,pendingDraw:null,finishOrder:[],deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,unoDeadline:null,winner:null,lastMove:null,lastUnoPenalty:null};}
 export function nextPlayer(s,index=s.turn,steps=1) {const n=s.players.length;return ((index+(s.direction??1)*steps)%n+n)%n;}
 function log(s,text) {s.log.unshift({id:++s.seq,text,time:Date.now()});s.log=s.log.slice(0,12);}
 function take(s,n) {
@@ -37,7 +37,7 @@ function take(s,n) {
 }
 export function startRound(s) {
   if(s.players.length!==(s.capacity??2)) throw new Error('Diğer oyuncular bekleniyor.');
-  s.deck=deck();s.pile=[];s.round++;s.phase='playing';s.turn=(s.round-1)%s.players.length;s.direction=1;s.color=null;s.winner=null;s.vulnerable=null;s.unoDeadline=null;s.drawnId=null;s.pendingDraw=null;s.finishOrder=[];
+  s.deck=deck();s.pile=[];s.round++;s.phase='playing';s.turn=(s.round-1)%s.players.length;s.direction=1;s.color=null;s.winner=null;s.vulnerable=null;s.unoDeadline=null;s.drawnId=null;s.pendingDraw=null;s.finishOrder=[];s.lastUnoPenalty=null;
   for(const p of s.players) {p.hand=take(s,7);p.ready=false;p.uno=false;}
   let first=s.deck.findIndex(c=>/^\d$/.test(c.value));s.pile=[s.deck.splice(first,1)[0]];s.color=s.pile[0].color;
   log(s,`${s.round}. el başladı. İlk sıra ${s.players[s.turn].name} adlı oyuncuda.`);
@@ -62,6 +62,7 @@ export function penalizeUno(s) {
   p.hand.push(...take(s,2));p.uno=false;
   s.finishOrder=(s.finishOrder??[]).filter(i=>!s.players[i].hand.length);
   log(s,`${p.name} UNO demedi ve 2 kart çekti.`);
+  s.lastUnoPenalty={player:index,seq:s.seq};
   s.lastMove={type:'uno-penalty',player:index,seq:s.seq};
   return true;
 }

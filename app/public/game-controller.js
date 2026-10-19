@@ -102,9 +102,12 @@ async function drain(){
     if(previous&&previous.round!==state.round){unoArmed=false;$('result-dialog').close();}
     if(previous&&previous.players[previous.me]?.count!==state.players[state.me]?.count)unoArmed=false;
     if(pendingCard&&!state.playable.includes(pendingCard)){$('color-dialog').close();pendingCard=null;}
+    if(previous?.round===state.round&&state.lastUnoPenalty?.seq!==previous.lastUnoPenalty?.seq&&state.lastUnoPenalty?.player===state.me)notice('UNO demedin: +2 kart.');
     moving=true;$('match').dataset.motion='moving';renderControls();
     try{await motion.update(previous,state,{present});}catch(error){console.error('Card transition failed',error);}
     if(version!==generation)return;
+    const timing=connection?.presented?.(snapshot.version);
+    if(timing){state.turnDeadline=timing.turnDeadline;state.unoDeadline=timing.unoDeadline;clockOffset=timing.serverNow-Date.now();}
     moving=false;$('match').dataset.motion='settled';renderControls();
     if(state.phase==='finished'&&resultRound!==state.round){resultRound=state.round;$('result-name').textContent=state.players[state.winner].name+' kazandı';$('result-dialog').showModal();}
   }
@@ -126,7 +129,7 @@ function renderControls(){
   $('draw').setAttribute('aria-label',state.pendingDraw?`${state.pendingDraw.count} kart çek`:'Kart çek');
   if(state.top)$('discard').setAttribute('aria-label',`${({red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi',wild:'Joker'})[state.top.color]} ${LABELS[state.top.value]??state.top.value}`);
   motion.updateInteraction(state,{blocked,present});
-  $('pass').hidden=!(mine&&(state.drawnId||state.pendingDraw));$('pass').disabled=blocked;
+  $('pass').hidden=!(mine&&!moving&&(state.drawnId||state.pendingDraw));$('pass').disabled=blocked;
   $('pass').textContent=state.pendingDraw?`${state.pendingDraw.count} kart çek`:'Pas';
   $('catch').hidden=true;$('catch').disabled=blocked;
   $('uno').disabled=!playing||![1,2].includes(self.count)||self.uno||blocked;
@@ -148,10 +151,11 @@ setInterval(updateTurnHint,500);
 
 async function action(type,extra={}){
   if(busy||moving||!connection||!state)return;
+  const current=connection;
   busy=true;renderControls();
-  try{await connection.action({type,...extra,...(type==='ready'?{round:state.round}:{})});}
-  catch(error){notice(error.message);}
-  finally{busy=false;renderControls();}
+  try{await current.action({type,...extra,...(type==='ready'?{round:state.round}:{})});}
+  catch(error){if(connection===current)notice(error.message);}
+  finally{if(connection===current){busy=false;renderControls();}}
 }
 
 $('hand').addEventListener('click',event=>{

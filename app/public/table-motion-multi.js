@@ -1,4 +1,4 @@
-import {TableMotion,planTransition} from './table-motion.js';
+import {TableMotion,planTransition,PLAY_DURATION,FOLLOWUP_DELAY} from './table-motion.js';
 import {card} from './cards.js';
 import {cardSound} from './card-audio.js';
 const rect=node=>node?.getBoundingClientRect();
@@ -35,8 +35,8 @@ export class MultiTableMotion extends TableMotion {
     const otherTargets=new Map([...this.rivals].map(([index,r])=>[index,new Map([...r.nodes].map(([id,slot])=>[id,this.geometry(slot.firstElementChild)]))]));
     const jobs=plan.deal?[]:this.layout(this.own,beforeOwn,this.capture(this.own),reduced);
     if(!plan.deal)for(const [index,rival]of this.rivals)jobs.push(...this.layout(rival.nodes,beforeOther.get(index)??new Map(),this.capture(rival.nodes),reduced));
-    if(newTop){newTop.style.visibility='hidden';jobs.push(this.fly(plan.ownPlayed?ownSource:plan.opponentPlayed?opponentSource:deckSource,this.geometry(newTop),{c:state.top,reveal:!plan.ownPlayed,target:newTop,duration:360,reduced}));if(!plan.deal)cardSound('play',reduced?0:305);}
-    const penaltyDelay=plan.ownPlayed||plan.opponentPlayed?280:0;
+    if(newTop){newTop.style.visibility='hidden';jobs.push(this.fly(plan.ownPlayed?ownSource:plan.opponentPlayed?opponentSource:deckSource,this.geometry(newTop),{c:state.top,reveal:!plan.ownPlayed,target:newTop,duration:PLAY_DURATION,reduced}));if(!plan.deal)cardSound('play',reduced?0:305);}
+    const penaltyDelay=plan.ownPlayed||plan.opponentPlayed?FOLLOWUP_DELAY:0;
     for(let i=0;i<plan.added.length;i++){const c=plan.added[i],node=this.own.get(c.id)?.firstElementChild;if(!node)continue;node.style.visibility='hidden';const delay=plan.deal?100+i*48:penaltyDelay+i*58;jobs.push(this.fly(deckSource,ownTargets.get(c.id),{c,reveal:true,target:node,delay,duration:430,reduced}));if(!plan.deal)cardSound('draw',reduced?0:delay,plan.added.length>1?.7:1);}
     for(const change of plan.opponents){const rival=this.rivals.get(change.index);if(!rival)continue;for(let i=0;i<change.added;i++){const index=Math.min(rival.limit-1,Math.max(0,change.oldCount-(change.played?1:0)+i)),node=rival.nodes.get('op-'+index)?.firstElementChild;const delay=plan.deal?75+i*48:penaltyDelay+i*58;if(node){const target=index>=Math.min(change.oldCount,rival.limit)?node:null;if(target)target.style.visibility='hidden';jobs.push(this.fly(deckSource,otherTargets.get(change.index)?.get('op-'+index),{backOnly:true,target,delay,duration:430,reduced}));}if(!plan.deal)cardSound('draw',reduced?0:delay,.65);}}
     if(plan.deal){cardSound('draw',0,.45);cardSound('draw',150,.4);cardSound('draw',300,.4);}

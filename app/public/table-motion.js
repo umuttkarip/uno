@@ -4,6 +4,9 @@ import {cardSound} from './card-audio.js';
 const EASE='cubic-bezier(.22,.8,.25,1)';
 const rect=node=>node?.getBoundingClientRect();
 const usable=box=>box&&box.width>1&&box.height>1;
+// A draw included in the same update must follow the card landing on the pile.
+export const PLAY_DURATION=360;
+export const FOLLOWUP_DELAY=PLAY_DURATION+60;
 
 export function planTransition(previous,next) {
   const self=next.players[next.me];
@@ -169,10 +172,10 @@ export class TableMotion {
     if(newTop){
       const source=plan.ownPlayed?ownSource:plan.opponentPlayed?opponentSource:deckSource;
       newTop.style.visibility='hidden';
-      jobs.push(this.fly(source,topTarget,{c:state.top,reveal:!plan.ownPlayed,target:newTop,duration:360,reduced}));
+      jobs.push(this.fly(source,topTarget,{c:state.top,reveal:!plan.ownPlayed,target:newTop,duration:PLAY_DURATION,reduced}));
       if(!plan.deal)cardSound('play',reduced?0:305);
     }
-    const penaltyDelay=(plan.ownPlayed||plan.opponentPlayed)?280:0;
+    const penaltyDelay=(plan.ownPlayed||plan.opponentPlayed)?FOLLOWUP_DELAY:0;
     for(let i=0;i<plan.added.length;i++){
       const c=plan.added[i],node=this.own.get(c.id)?.firstElementChild;
       if(!node)continue;
