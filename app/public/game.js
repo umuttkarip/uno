@@ -8,8 +8,6 @@ const $ = id => document.getElementById(id);
 let connection, state, busy=false, entering=false, unoArmed=false, pendingCard, previousMove, resultRound=-1;
 let handKey='', opponentKey='', topKey='', noticeTimer, present=true, suppressClickUntil=0;
 const messageTimers=new Set();
-const remembered = (() => {try{return localStorage.getItem('uno-v2-name')||'';}catch{return '';}})();
-$('name').value=remembered;
 const roomParam=new URL(location.href).searchParams.get('masa');
 if(roomParam)$('room').value=roomParam;
 $('deck-face').innerHTML=back();
@@ -31,7 +29,6 @@ $('entry-form').addEventListener('submit',async e=>{
   e.preventDefault();if(entering||!$('entry-form').reportValidity())return;
   entering=true;$('enter').disabled=true;$('entry-error').textContent='';await unlockAudio();
   const name=$('name').value.trim(),room=$('room').value.trim();
-  try{localStorage.setItem('uno-v2-name',name);}catch{}
   const current=connection=new TableConnection({
     onState:snapshot=>{if(connection===current)receive(snapshot);},
     onMessage:message=>{if(connection===current)showMessage(message);},
@@ -160,5 +157,5 @@ window.addEventListener('pointerup',endDrag);window.addEventListener('pointercan
 window.addEventListener('pagehide',()=>connection?.shutdown());
 try {
   const saved=roomParam?JSON.parse(sessionStorage.getItem('uno-v2:'+roomKey(roomParam))):null;
-  if(saved?.name===remembered&&saved.token)$('entry-form').requestSubmit();
+  if(saved?.name&&saved.token){$('name').value=saved.name;$('entry-form').requestSubmit();}
 } catch {}

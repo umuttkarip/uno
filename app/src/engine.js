@@ -102,7 +102,7 @@ export function act(s,index,a) {
   }
 }
 export function view(s,index) {
-  return {...s,deck:undefined,pile:undefined,top:s.pile.at(-1)??null,deckCount:s.deck.length,me:index,
+  return {...s,log:undefined,deck:undefined,pile:undefined,top:s.pile.at(-1)??null,deckCount:s.deck.length,me:index,
     players:s.players.map((p,i)=>({name:p.name,score:p.score,wins:p.wins,ready:p.ready,uno:p.uno,online:Date.now()-p.seen<35000,count:p.hand.length,...(i===index?{hand:p.hand}:{})})),
     playable:s.players[index].hand.filter(c=>playable(s,index,c)).map(c=>c.id)};
 }
