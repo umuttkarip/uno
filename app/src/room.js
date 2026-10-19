@@ -2,7 +2,7 @@ import {act, newPlayer, newRoom, startRound, validName, view} from './engine.js'
 
 export const IDLE_LIMIT = 20 * 60 * 1000;
 export const TURN_DURATION = 30 * 1000;
-export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal'];
+export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry'];
 
 export class RoomAuthority {
   constructor(room, name, token, {now = Date.now, saved} = {}) {

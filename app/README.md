@@ -1,6 +1,6 @@
 # UNO
 
-İki oyuncu adını ve aynı masa adını yazar. Masa varsa katılır, yoksa oluşturulur; ikinci kişi gelince oyun başlar. Kullanılmayan masalar 20 dakika sonra kapanır. Sohbet mesajları, 3B ifadeler ve çıkartma 5 saniye görünür. Giriş: https://umuttkarip.github.io/uno/
+İki oyuncu adını ve aynı masa adını yazar. Masa varsa katılır, yoksa oluşturulur; ikinci kişi gelince oyun başlar. Tek oyuncu varken “1 oyuncu daha bekleniyor” gösterilir. Kullanılmayan masalar 20 dakika sonra kapanır. Sohbet mesajları, 3B ifadeler ve dört fok çıkartması 5 saniye görünür. Giriş: https://umuttkarip.github.io/uno/
 
 ## Geliştirme
 
@@ -12,4 +12,6 @@ Masa sahibinin sekmesi yenilenirse oturum bu sekmede korunur ve diğer oyuncu ye
 
 Her hamle için 30 saniye vardır; sayısal sayaç gösterilmez. Süre dolarsa bir kart çekilir ve sıra geçer; önceden kart çekilmişse yalnız pas geçilir. Bağlantı kopunca süre durur. El ve masa geçişleri kart kimlikleri korunarak yapılır; yeni kart desteden gelir, atılan kart masaya gider, kalan kartlar yerlerine kayar. Hareket azaltma tercihi açıksa uçuş yerine kısa solma kullanılır. Kartlar her iki oyuncuda da canlı renktedir; oynanabilirlik yalnız sıradaki oyuncuda çok hafif yükseltiyle belirtilir.
 
-Sesler [Kenney Casino Audio](https://kenney.nl/assets/casino-audio), CC0; ifade görselleri [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji), MIT lisanslıdır. WAV ve PNG dosyaları yereldir; Apple cihazları dahil aynı dosyalar kullanılır. Apple emoji fontu dağıtılmaz. Fok çıkartması kullanıcı tarafından sağlanan PNG’dir. Lisanslar `app/public/assets/` içinde bulunur.
+Sesler [Kenney Casino Audio](https://kenney.nl/assets/casino-audio), CC0; ifade görselleri [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji), MIT lisanslıdır. Apple cihazları dahil aynı küçük WebP/MP3 dosyaları kullanılır. Apple emoji fontu dağıtılmaz. Mevcut fok kullanıcı tarafından sağlandı; dil çıkaran, mutlu ve ağlayan varyantlar bu referanslardan üretildi. Lisanslar `app/public/assets/`, üretim notları `STICKER_NOTES.md` içinde bulunur.
+
+Veri bütçesi: 12 görsel ve 6 ses toplam 100.471 bayt; dört fok toplam 26.848 bayt, tek fok 5–8 KB. Girişte medya indirilmez. Sesler masaya girerken, görseller sohbet açılırken veya tek bir ifade alınınca yüklenir; normal HTTP önbelleği kullanılır. Tekrar gönderilen ifadeler yalnız kısa kod taşır; görsel dosyası her mesajda iletilmez. Oyun durumu yalnız hamlelerde yayımlanır, 250 ms yerel saat kontrolü ağ isteği yapmaz. `media.test.mjs` dosya boyutlarını ve protokolde dört çıkartmanın da kabul edildiğini denetler. Kaynak PNG/WAV dosyaları korunur ve oyunda kullanılmaz.

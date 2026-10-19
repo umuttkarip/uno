@@ -2,36 +2,44 @@ import {TableConnection} from '../src/network.js';
 import {COLORS,roomKey,LABELS} from '../src/engine.js';
 import {back} from './cards.js';
 import {TableMotion} from './table-motion.js';
-import {unlockAudio} from './card-audio.js';
+import {unlockAudio,prepareAudio} from './card-audio.js';
 import {EXPRESSIONS,expression,expressionImage,preloadExpressions} from './expressions.js';
 
 const $=id=>document.getElementById(id);
 let connection,state,busy=false,entering=false,moving=false,unoArmed=false,pendingCard,resultRound=-1;
 let present=true,noticeTimer,suppressClickUntil=0,clockOffset=0,processing=false,generation=0;
-let queue=[],chatAnimation,chatGeneration=0;
+let queue=[],chatAnimation,chatGeneration=0,chatReady=false,sending=false;
 const messageTimers=new Set();
 const roomParam=new URL(location.href).searchParams.get('masa');
 if(roomParam)$('room').value=roomParam;
 $('deck-face').innerHTML=back();
 const motion=new TableMotion({hand:$('hand'),opponent:$('opponent-hand'),discard:$('discard'),deck:$('draw'),scroll:$('hand-scroll')});
-$('emotes').innerHTML=EXPRESSIONS.map(item=>`<button type="button" class="${item.sticker?'sticker-choice':''}" data-emote="${item.code}" aria-label="${item.name}">${expressionImage(item.code)}</button>`).join('');
-preloadExpressions();
+function prepareChat(){
+  if(chatReady)return;
+  chatReady=true;
+  const choice=item=>`<button type="button" class="${item.sticker?'sticker-choice':''}" data-emote="${item.code}" aria-label="${item.name}">${expressionImage(item.code)}</button>`;
+  $('stickers').innerHTML=EXPRESSIONS.filter(item=>item.sticker).map(choice).join('');
+  $('emotes').innerHTML=EXPRESSIONS.filter(item=>!item.sticker).map(choice).join('');
+  preloadExpressions();
+}
 document.addEventListener('pointerdown',unlockAudio,{once:true});
 
 function notice(text){if(!text)return;$('notice').textContent=text;$('notice').hidden=false;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').hidden=true,3200);}
-function setChat(open,instant=false){
+function setChat(open,instant=false,focusInput=false){
   const version=++chatGeneration;
   chatAnimation?.cancel();
   $('chat-toggle').setAttribute('aria-expanded',String(open));
   const panel=$('chat-panel');
   if(open){
+    prepareChat();
     panel.hidden=false;
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)chatAnimation=panel.animate([{opacity:0,transform:'translateY(7px) scale(.98)'},{opacity:1,transform:'none'}],{duration:180,easing:'cubic-bezier(.22,.8,.25,1)'});
-    $('message').focus({preventScroll:true});
+    if(focusInput)$('message').focus({preventScroll:true});
   }else if(!instant&&!panel.hidden&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     chatAnimation=panel.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(4px) scale(.99)'}],{duration:120,easing:'ease-out'});
     chatAnimation.finished.catch(()=>{}).then(()=>{if(version===chatGeneration)panel.hidden=true;});
   }else panel.hidden=true;
+  if(!open&&panel.contains(document.activeElement))$('chat-toggle').focus({preventScroll:true});
 }
 
 function showLogin(message=''){
@@ -46,7 +54,7 @@ function showLogin(message=''){
 
 $('entry-form').addEventListener('submit',async event=>{
   event.preventDefault();if(entering||!$('entry-form').reportValidity())return;
-  entering=true;$('enter').disabled=true;$('entry-error').textContent='';unlockAudio();
+  entering=true;$('enter').disabled=true;$('entry-error').textContent='';unlockAudio();prepareAudio();
   const name=$('name').value.trim(),room=$('room').value.trim();
   const current=connection=new TableConnection({
     onState:snapshot=>{if(connection===current)receive(snapshot);},
@@ -90,6 +98,7 @@ async function drain(){
 
 function renderControls(){
   if(!state)return;
+  $('match').dataset.phase=state.phase;
   const self=state.players[state.me],opponent=state.players[1-state.me];
   const playing=state.phase==='playing',mine=playing&&state.turn===state.me;
   const blocked=busy||moving||!present;
@@ -144,15 +153,19 @@ $('uno').onclick=()=>{if(state?.players[state.me].count===1)void action('uno');e
 $('rematch').onclick=()=>action('ready');$('result-close').onclick=()=>$('result-dialog').close();
 $('discard').onclick=()=>{if(state?.phase==='finished')$('result-dialog').showModal();};
 $('leave').onclick=()=>{connection?.leave();showLogin();};
-$('chat-toggle').onclick=()=>setChat($('chat-panel').hidden);$('chat-close').onclick=()=>setChat(false);
+$('chat-toggle').onclick=event=>setChat($('chat-panel').hidden,false,event.detail===0);$('chat-close').onclick=()=>setChat(false);
 
 async function sendMessage(payload){
-  if(!connection||!state)return;
+  if(!connection||!state||sending)return;
+  sending=true;updateSend();
   try{await connection.message(payload);setChat(false);$('message').value='';}
   catch(error){notice(error.message);}
+  finally{sending=false;updateSend();}
 }
+function updateSend(){$('send').disabled=sending||!$('message').value.trim();}
+$('message').addEventListener('input',updateSend);
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('message').value.trim();if(text)void sendMessage({text});};
-$('emotes').onclick=event=>{const emote=event.target.closest('[data-emote]')?.dataset.emote;if(emote)void sendMessage({emote});};
+for(const id of ['emotes','stickers'])$(id).onclick=event=>{const emote=event.target.closest('[data-emote]')?.dataset.emote;if(emote)void sendMessage({emote});};
 function showMessage(message){
   if(!state||!state.players[message.player])return;
   const item=message.emote?expression(message.text):null;

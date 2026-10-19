@@ -3,7 +3,11 @@ const buffers=new Map();
 const samples={draw:['card-slide-1','card-slide-2','card-slide-3'],play:['card-place-1','card-place-2','card-place-3']};
 const raw=new Map();
 const counters={draw:0,play:0};
-for(const names of Object.values(samples))for(const name of names)raw.set(name,fetch('./assets/audio/'+name+'.wav').then(r=>r.ok?r.arrayBuffer():null).catch(()=>null));
+export function prepareAudio() {
+  if(raw.size)return;
+  for(const names of Object.values(samples))for(const name of names)raw.set(name,fetch('./assets/audio/'+name+'.mp3').then(r=>r.ok?r.arrayBuffer():null).catch(()=>null));
+  decode();
+}
 function decode() {
   if(!context)return;
   for(const [name,data] of raw)if(!buffers.has(name))buffers.set(name,data.then(b=>b?context.decodeAudioData(b):null).catch(()=>null));
