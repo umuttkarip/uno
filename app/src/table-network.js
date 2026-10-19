@@ -8,17 +8,17 @@ const erase=key=>{try{sessionStorage.removeItem(key);}catch{}};
 
 export class TableConnection {
   constructor(callbacks){Object.assign(this,callbacks);this.pending=new Map();this.connections=new Map();this.closed=false;this.version=0;this.reconnects=0;}
-  async enter(name,room,{capacity=2}={}){
-    this.name=validName(name);this.room=validName(room,'room');this.capacity=capacity===4?4:2;this.key=roomKey(room);this.storageKey='uno-v5:'+this.key;
+  async enter(name,room){
+    this.name=validName(name);this.room=validName(room,'room');this.capacity=6;this.key=roomKey(room);this.storageKey='uno-v6:'+this.key;
     const previous=read(this.storageKey);this.token=previous?.name===this.name?previous.token:crypto.randomUUID();
-    this.saved=previous?.name===this.name&&previous.host&&previous.saved.state.capacity===this.capacity&&Date.now()-previous.saved.lastActive<IDLE_LIMIT?previous.saved:null;
+    this.saved=previous?.name===this.name&&previous.host&&previous.saved.state.mode==='group'&&Date.now()-previous.saved.lastActive<IDLE_LIMIT?previous.saved:null;
     const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(this.key));
-    this.hostId='umut-uno-v5-'+Array.from(new Uint8Array(hash)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,48);
+    this.hostId='umut-uno-v6-'+Array.from(new Uint8Array(hash)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,48);
     return new Promise((resolve,reject)=>{this.resolveEntry=resolve;this.rejectEntry=reject;this.entryTimer=setTimeout(()=>this.fail('Bağlantı kurulamadı. Tekrar dene.'),25000);this.claim();});
   }
   claim(){
     if(this.closed)return;const peer=this.peer=new Peer(this.hostId,{debug:0});
-    peer.on('open',()=>{if(this.closed)return;this.host=true;this.authority=new RoomAuthority(this.room,this.name,this.token,{saved:this.saved,capacity:this.capacity,scores:readScores(this.room)});this.authority.pauseTurn();peer.on('connection',conn=>this.accept(conn));this.publish();this.finishEntry();this.startClock();});
+    peer.on('open',()=>{if(this.closed)return;this.host=true;this.authority=new RoomAuthority(this.room,this.name,this.token,{saved:this.saved,capacity:this.capacity,mode:'group',scores:readScores(this.room)});this.authority.pauseTurn();peer.on('connection',conn=>this.accept(conn));this.publish();this.finishEntry();this.startClock();});
     peer.on('error',error=>{if(this.closed||this.peer!==peer)return;if(error.type==='unavailable-id'&&!this.host){peer.destroy();this.becomeGuest();}else this.peerError(error);});
     peer.on('disconnected',()=>this.reconnectSignaling(peer));
   }
@@ -42,7 +42,7 @@ export class TableConnection {
     conn.on('close',()=>{clearTimeout(timeout);if(this.closed||this.conn!==conn)return;this.joined=false;this.onPresence?.(false);this.retryHost();});
     conn.on('error',()=>{clearTimeout(timeout);if(!this.closed&&this.conn===conn)this.retryHost();});
   }
-  allPresent(){const s=this.authority.state;return s.players.length===s.capacity&&s.players.every((p,i)=>i===0||p.bot||this.connections.get(i)?.open);}
+  allPresent(){return this.authority.state.players.every((p,i)=>i===0||p.bot||this.connections.get(i)?.open);}
   syncPresence(){
     const s=this.authority.state;s.players.forEach((p,i)=>p.online=i===0||!!p.bot||!!this.connections.get(i)?.open);
     this.joined=this.allPresent();if(this.joined){clearTimeout(this.offlineTimer);this.authority.resumeTurn();}else this.authority.pauseTurn();

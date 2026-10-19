@@ -4,8 +4,9 @@ import {cardSound} from './card-audio.js';
 const rect=node=>node?.getBoundingClientRect();
 const usable=box=>box&&box.width>1&&box.height>1;
 export function seating(state){
-  const count=state.capacity??state.players.length;
-  return state.players.flatMap((p,index)=>{if(index===state.me)return[];const distance=(index-state.me+count)%count;return[{index,seat:count===4?({1:'left',2:'top',3:'right'})[distance]:'top'}];});
+  const count=state.players.length;
+  const places={2:['top'],3:['upperLeft','upperRight'],4:['left','top','right'],5:['left','upperLeft','upperRight','right'],6:['left','upperLeft','top','upperRight','right']};
+  return state.players.flatMap((p,index)=>{if(index===state.me)return[];const distance=(index-state.me+count)%count;return[{index,seat:places[count]?.[distance-1]??'top'}];});
 }
 export class MultiTableMotion extends TableMotion {
   constructor(args){super({...args,opponent:args.seats.top.hand});this.seats=args.seats;this.rivals=new Map();}
@@ -23,7 +24,7 @@ export class MultiTableMotion extends TableMotion {
     const n=state.players[state.me].hand.length;
     this.hand.style.setProperty('--overlap',(n>10?43:n>7?34:28)+'px');
     this.reconcile(this.own,this.hand,state.players[state.me].hand.map((c,i)=>({key:c.id,card:c,rotation:n<=11?(i-(n-1)/2)*1.6:0,offset:n<=11?Math.abs(i-(n-1)/2)*1.2:0})));
-    for(const {index}of placements){const rival=this.rivals.get(index),count=state.players[index].count,limit=state.capacity===4?(narrow?5:9):16;const visible=Math.min(count,limit);rival.visible=visible;rival.limit=limit;
+    for(const {index}of placements){const rival=this.rivals.get(index),count=state.players[index].count,limit=state.players.length>=5?(narrow?3:6):state.players.length>=3?(narrow?5:9):16;const visible=Math.min(count,limit);rival.visible=visible;rival.limit=limit;
       this.reconcile(rival.nodes,rival.container,Array.from({length:visible},(_,i)=>({key:'op-'+i,rotation:(i-(visible-1)/2)*3.2,offset:Math.abs(i-(visible-1)/2)*1.1})),true);
       rival.container.setAttribute('aria-label',`${count} kapalı kart`);
     }

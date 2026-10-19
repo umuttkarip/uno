@@ -32,6 +32,7 @@ export class RoomAuthority {
       return existing;
     }
     if (this.state.players.length >= this.state.capacity) throw new Error('Masa dolu.');
+    if (this.state.phase!=='waiting') throw new Error('Bu masada oyun başladı.');
     if (this.state.players.some(p=>name.trim().toLocaleLowerCase('tr-TR') === p.name.toLocaleLowerCase('tr-TR'))) throw new Error('Farklı bir ad yaz.');
     const player=newPlayer(name, token);this.restoreScore(player);this.state.players.push(player);
     if(this.state.players.length===this.state.capacity){startRound(this.state);this.restartTurn();}
@@ -44,7 +45,8 @@ export class RoomAuthority {
     if (this.expired()) throw new Error('Masa kapandı.');
     if (this.expireTurn()) return false;
     if (this.expireUno()) return false;
-    const sameRoundReady=command?.type==='ready'&&command.round===this.state.round&&this.state.phase==='finished';
+    if(command?.type==='ready'&&command.round!==undefined&&command.round!==this.state.round)throw new Error('Bu el sona erdi.');
+    const sameRoundReady=command?.type==='ready'&&command.round===this.state.round&&(this.state.phase==='finished'||(this.state.phase==='waiting'&&this.state.mode==='group'));
     if (revision !== this.revision&&!sameRoundReady) throw new Error('Tekrar dene.');
     if (!['play','draw','pass','uno','catch','ready'].includes(command?.type)) throw new Error('Geçersiz hamle.');
     act(this.state, index, command);

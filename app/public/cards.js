@@ -1,5 +1,5 @@
 const colors = {red: '#d90b28', yellow: '#f5c400', green: '#00954c', blue: '#086bdb', wild: '#161819'};
-const labels = {skip: 'Pas', reverse: 'Yön değiştir', draw2: '+2', wild: 'Joker', wild4: '+4'};
+const labels = {skip: 'Pas', reverse: 'Yön değiştir', draw2: '+2', wild: 'Renk değiştir', wild4: '+4'};
 const names = {red: 'Kırmızı', yellow: 'Sarı', green: 'Yeşil', blue: 'Mavi', wild: 'Joker'};
 export const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
