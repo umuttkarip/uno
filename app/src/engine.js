@@ -19,10 +19,8 @@ export function roomKey(name) {
   return String(name??'').trim().toLocaleLowerCase('tr-TR').replace(/ı/g,'i').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
 }
 export function validName(name, type='player') {
-  if (typeof name !== 'string') throw new Error('Lütfen bir isim yaz.');
-  const n=name.trim(); const max=type==='room'?32:18;
-  if(n.length<2 || n.length>max || /[<>\x00-\x1f]/.test(n)) throw new Error(`İsim 2–${max} karakter olmalı.`);
-  if(type==='room' && !/^[a-z0-9-]+$/.test(roomKey(n))) throw new Error('Masa adı harf, sayı ve boşluk içerebilir.');
+  const n=typeof name==='string'?name.trim():'';
+  if(!n)throw new Error(type==='room'?'Lütfen masa adını yaz.':'Lütfen adını yaz.');
   return n;
 }
 export function newPlayer(name,token) {return {name:validName(name),token,hand:[],score:0,wins:0,seen:Date.now(),ready:false,uno:false};}
