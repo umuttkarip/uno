@@ -15,7 +15,7 @@ export function sceneIndex(c,back=false){
 function art(theme,index,{preview=false}={}){
   if(preview)return `<image href="./assets/cards/${theme}-cover.webp" x="9" y="29" width="82" height="95" preserveAspectRatio="xMidYMid meet"/>`;
   const local=index%16,column=local%4,row=Math.floor(local/4),sheet=index<16?'a':'b';
-  return `<svg x="7" y="28" width="86" height="98" style="width:86%;height:65.333333%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="./assets/cards/${theme}-${sheet}.webp" x="0" y="0" width="400" height="400"/></svg>`;
+  return `<svg x="7" y="34" width="86" height="86" style="width:86%;height:57.333333%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="./assets/cards/${theme}-${sheet}.webp" x="0" y="0" width="400" height="400"/></svg>`;
 }
 const multicolor='<path d="M15 6a9 9 0 0 1 9 9h-9Z" fill="#df1837"/><path d="M24 15a9 9 0 0 1-9 9v-9Z" fill="#087ddd"/><path d="M15 24a9 9 0 0 1-9-9h9Z" fill="#139854"/><path d="M6 15a9 9 0 0 1 9-9v9Z" fill="#efc50e"/>';
 function glyph(value,fill){
