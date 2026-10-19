@@ -107,9 +107,11 @@ function renderControls(){
   $('opponent-name').classList.toggle('absent',!present);
   $('waiting').hidden=state.phase!=='waiting';$('piles').hidden=state.phase==='waiting';
   $('draw').disabled=!mine||!!state.drawnId||blocked;
+  $('draw').setAttribute('aria-label',state.pendingDraw?`${state.pendingDraw.count} kart çek`:'Kart çek');
   if(state.top)$('discard').setAttribute('aria-label',`${({red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi',wild:'Joker'})[state.top.color]} ${LABELS[state.top.value]??state.top.value}`);
   motion.updateInteraction(state,{blocked,present});
-  $('pass').hidden=!(mine&&state.drawnId);$('pass').disabled=blocked;
+  $('pass').hidden=!(mine&&(state.drawnId||state.pendingDraw));$('pass').disabled=blocked;
+  $('pass').textContent=state.pendingDraw?`${state.pendingDraw.count} kart çek`:'Pas';
   $('catch').hidden=!(playing&&state.vulnerable===1-state.me);$('catch').disabled=blocked;
   $('uno').disabled=!playing||![1,2].includes(self.count)||self.uno||blocked;
   $('uno').classList.toggle('armed',unoArmed||self.uno);$('uno').setAttribute('aria-pressed',String(unoArmed||self.uno));
@@ -148,7 +150,7 @@ document.querySelectorAll('[data-color]').forEach(button=>button.addEventListene
 }));
 $('color-dialog').addEventListener('close',()=>pendingCard=null);
 $('color-dialog').addEventListener('click',event=>{if(event.target===$('color-dialog')){const box=event.target.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)event.target.close();}});
-$('draw').onclick=()=>action('draw');$('pass').onclick=()=>action('pass');$('catch').onclick=()=>action('catch');
+$('draw').onclick=()=>action('draw');$('pass').onclick=()=>action(state?.pendingDraw?'draw':'pass');$('catch').onclick=()=>action('catch');
 $('uno').onclick=()=>{if(state?.players[state.me].count===1)void action('uno');else{unoArmed=!unoArmed;renderControls();}};
 $('rematch').onclick=()=>action('ready');$('result-close').onclick=()=>$('result-dialog').close();
 $('discard').onclick=()=>{if(state?.phase==='finished')$('result-dialog').showModal();};
@@ -186,4 +188,4 @@ window.addEventListener('pointermove',event=>{if(!drag)return;const delta=event.
 function endDrag(){if(drag?.moved)suppressClickUntil=Date.now()+250;drag=null;$('hand-scroll').classList.remove('dragging');}
 window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
 window.addEventListener('pagehide',()=>connection?.shutdown());
-try{const saved=roomParam?JSON.parse(sessionStorage.getItem('uno-v3:'+roomKey(roomParam))):null;if(saved?.name&&saved.token){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}
+try{const saved=roomParam?JSON.parse(sessionStorage.getItem('uno-v4:'+roomKey(roomParam))):null;if(saved?.name&&saved.token){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}

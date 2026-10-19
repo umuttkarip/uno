@@ -13,6 +13,7 @@ export class RoomAuthority {
     this.lastMessages = new Map();
     this.remaining = saved?.remaining ?? null;
     this.state.turnDeadline ??= null;
+    this.state.pendingDraw ??= null;
   }
 
   join(name, token) {

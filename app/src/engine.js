@@ -24,7 +24,7 @@ export function validName(name, type='player') {
   return n;
 }
 export function newPlayer(name,token) {return {name:validName(name),token,hand:[],score:0,wins:0,seen:Date.now(),ready:false,uno:false};}
-export function newRoom(name, player) {return {name:validName(name,'room'),players:[player],phase:'waiting',round:0,turn:0,drawnId:null,deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,winner:null,lastMove:null};}
+export function newRoom(name, player) {return {name:validName(name,'room'),players:[player],phase:'waiting',round:0,turn:0,drawnId:null,pendingDraw:null,deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,winner:null,lastMove:null};}
 function log(s,text) {s.log.unshift({id:++s.seq,text,time:Date.now()});s.log=s.log.slice(0,12);}
 function take(s,n) {
   const out=[];
@@ -36,18 +36,25 @@ function take(s,n) {
 }
 export function startRound(s) {
   if(s.players.length!==2) throw new Error('Başlamak için arkadaşının katılmasını bekle.');
-  s.deck=deck();s.pile=[];s.round++;s.phase='playing';s.turn=(s.round-1)%2;s.color=null;s.winner=null;s.vulnerable=null;s.drawnId=null;
+  s.deck=deck();s.pile=[];s.round++;s.phase='playing';s.turn=(s.round-1)%2;s.color=null;s.winner=null;s.vulnerable=null;s.drawnId=null;s.pendingDraw=null;
   for(const p of s.players) {p.hand=take(s,7);p.ready=false;p.uno=false;}
   let first=s.deck.findIndex(c=>/^\d$/.test(c.value));s.pile=[s.deck.splice(first,1)[0]];s.color=s.pile[0].color;
   log(s,`${s.round}. el başladı. İlk sıra ${s.players[s.turn].name} adlı oyuncuda.`);
 }
 export function playable(s,index,c) {
   if(s.phase!=='playing' || s.turn!==index || !c || (s.drawnId && s.drawnId!==c.id)) return false;
+  // House rule: a pending penalty can be matched or raised, never lowered.
+  if(s.pendingDraw)return c.value==='wild4'||(c.value==='draw2'&&s.pendingDraw.value==='draw2');
   if(c.value==='wild4') return !s.players[index].hand.some(x=>x.color===s.color);
   const top=s.pile.at(-1);
   return c.color==='wild' || c.color===s.color || c.value===top.value;
 }
 export function points(c) {return c.color==='wild'?50:/^\d$/.test(c.value)?Number(c.value):20;}
+function finishRound(s,index) {
+  s.phase='finished';s.winner=index;const p=s.players[index],other=s.players[1-index];
+  const gain=other.hand.reduce((n,c)=>n+points(c),0);p.score+=gain;p.wins++;s.roundPoints=gain;s.vulnerable=null;
+  log(s,`${p.name} eli kazandı! +${gain} puan.`);
+}
 export function act(s,index,a) {
   const p=s.players[index],other=s.players[1-index];
   if(!p) throw new Error('Bu masada oyuncu değilsin.');
@@ -69,6 +76,14 @@ export function act(s,index,a) {
   if(s.turn!==index) throw new Error('Şu anda sıra arkadaşında.');
   if(a.type==='draw') {
     if(s.drawnId) throw new Error('Bir kart çektin. Oyna veya pas geç.');
+    if(s.pendingDraw){
+      const count=s.pendingDraw.count;
+      p.hand.push(...take(s,count));p.uno=false;s.vulnerable=null;s.pendingDraw=null;s.drawnId=null;s.turn=1-index;
+      log(s,`${p.name} ${count} kart çekti ve sırasını kaybetti.`);
+      s.lastMove={type:'draw',player:index,seq:s.seq};
+      if(!other.hand.length)finishRound(s,1-index);
+      return;
+    }
     s.vulnerable=null;const cards=take(s,1);p.hand.push(...cards);p.uno=false;
     log(s,`${p.name} bir kart çekti.`);
     if(cards.length && playable(s,index,cards[0])) s.drawnId=cards[0].id;
@@ -88,16 +103,14 @@ export function act(s,index,a) {
   s.turn=1-index;
   if(c.value==='skip'||c.value==='reverse') {s.turn=index;log(s,'İki kişilik oyunda sıra tekrar sende.');}
   if(c.value==='draw2'||c.value==='wild4') {
-    const n=c.value==='draw2'?2:4;other.hand.push(...take(s,n));other.uno=false;s.turn=index;log(s,`${other.name} ${n} kart çekti ve sırasını kaybetti.`);
+    s.pendingDraw={count:(s.pendingDraw?.count??0)+(c.value==='draw2'?2:4),value:c.value};
   }
   s.lastMove={type:'play',player:index,card:c.id,seq:s.seq};
   if(p.hand.length===1) {
     p.uno=a.uno===true;
     if(p.uno)log(s,`${p.name}: UNO!`);else s.vulnerable=index;
   }
-  if(!p.hand.length) {
-    s.phase='finished';s.winner=index;const gain=other.hand.reduce((n,c)=>n+points(c),0);p.score+=gain;p.wins++;s.roundPoints=gain;s.vulnerable=null;log(s,`${p.name} eli kazandı! +${gain} puan.`);
-  }
+  if(!p.hand.length&&!s.pendingDraw)finishRound(s,index);
 }
 export function view(s,index) {
   return {...s,log:undefined,deck:undefined,pile:undefined,top:s.pile.at(-1)??null,deckCount:s.deck.length,me:index,
