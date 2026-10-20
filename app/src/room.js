@@ -17,8 +17,8 @@ export class RoomAuthority {
     this.remaining = saved?.remaining ?? null;
     this.state.turnDeadline ??= null;
     this.state.pendingDraw ??= null;
-    this.state.unoDeadline ??= null;
-    this.unoRemaining=saved?.unoRemaining??null;
+    penalizeUno(this.state);
+    this.unoRemaining=null;
   }
 
   join(name, token) {
@@ -50,7 +50,6 @@ export class RoomAuthority {
     if (revision !== this.revision&&!sameRoundReady) throw new Error('Tekrar dene.');
     if (!['play','draw','pass','uno','catch','ready'].includes(command?.type)) throw new Error('Geçersiz hamle.');
     act(this.state, index, command);
-    if(this.state.vulnerable!==null&&!this.state.unoDeadline)this.state.unoDeadline=this.now()+UNO_DURATION;
     if (!['uno','catch'].includes(command.type)) this.restartTurn();
     this.state.players[index].seen = this.now();
     this.revision++;
@@ -69,13 +68,11 @@ export class RoomAuthority {
 
   restartTurn() {this.state.turnDeadline = this.state.phase === 'playing' ? this.now() + TURN_DURATION : null; this.remaining = null;}
   pauseTurn() {
-    if(this.state.unoDeadline){this.unoRemaining=Math.max(250,this.state.unoDeadline-this.now());this.state.unoDeadline=null;}
     if (this.state.phase !== 'playing' || !this.state.turnDeadline) return;
     this.remaining = Math.max(1000, this.state.turnDeadline - this.now());
     this.state.turnDeadline = null;
   }
   resumeTurn() {
-    if(this.unoRemaining!==null&&this.state.vulnerable!==null){this.state.unoDeadline=this.now()+this.unoRemaining;this.unoRemaining=null;}
     if (this.state.phase !== 'playing' || this.state.turnDeadline) return;
     this.state.turnDeadline = this.now() + Math.max(5000, this.remaining ?? TURN_DURATION);
     this.remaining = null;
@@ -95,10 +92,7 @@ export class RoomAuthority {
     return true;
   }
   expireUno() {
-    const s=this.state;
-    if(this.expired()||s.phase!=='playing'||!s.unoDeadline||this.now()<s.unoDeadline)return false;
-    const changed=penalizeUno(s);if(changed)this.revision++;
-    return changed;
+    return penalizeUno(this.state);
   }
   snapshot(index) {return {state: structuredClone(view(this.state, index)), version: this.revision, serverNow:this.now()};}
   checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining};}

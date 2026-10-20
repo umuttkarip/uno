@@ -33,14 +33,14 @@ export function chooseDeckAppearance(look,id,{matchTable=true}={}){
 const loaded=new Map();
 function loadDeck(id,rules='classic'){
   const key=id+':'+rules;if(loaded.has(key))return loaded.get(key);
-  const job=Promise.all([...deckFiles(id),...(rules==='special'?specialDeckFiles(id):[])].map(src=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve();image.onerror=()=>reject(new Error('Kart tasarımı yüklenemedi.'));image.src=src;})));
+  const job=Promise.all([...deckFiles(id),...(rules==='special'?specialDeckFiles(id):[])].map(src=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>Promise.resolve(image.decode?.()).catch(()=>{}).then(resolve);image.onerror=()=>reject(new Error('Kart tasarımı yüklenemedi.'));image.src=src;})));
   loaded.set(key,job);job.catch(()=>loaded.delete(key));return job;
 }
-export function mountAppearance({onDeckChange,onError}){
+export function mountAppearance({onDeckChange,onError,rules:initialRules='classic'}){
   const $=id=>document.getElementById(id);
   if(!APPEARANCE_POLICY.tables&&!APPEARANCE_POLICY.cards){$('appearance-toggle').hidden=true;setDeckTheme('classic');return {ensureDeck:()=>Promise.resolve(),setBusy:()=>{}};}
   $('appearance-toggle').hidden=false;
-  const panel=$('appearance-panel');let look=readAppearance(),built=false,loading=false,busy=false,previewDeck,rules='classic',tableRevision=0;
+  const panel=$('appearance-panel');let look=readAppearance(),built=false,loading=false,busy=false,previewDeck,rules=initialRules,tableRevision=0;
   if(!APPEARANCE_POLICY.tables)look=chooseTableAppearance(look,'green');
   if(!APPEARANCE_POLICY.cards)look.deck='classic';
   $('table-options').hidden=!APPEARANCE_POLICY.tables;$('deck-options').hidden=!APPEARANCE_POLICY.cards;$('appearance-preview').hidden=!APPEARANCE_POLICY.cards;
@@ -56,5 +56,6 @@ export function mountAppearance({onDeckChange,onError}){
   document.addEventListener('pointerdown',event=>{if(!panel.hidden&&!panel.contains(event.target)&&!$('appearance-toggle').contains(event.target))open(false);});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')open(false);});
   table();setDeckTheme(look.deck);saveAppearance(look);
+  void loadDeck(look.deck,rules).catch(()=>{});
   return {ensureDeck:(value=rules)=>{rules=value;return loadDeck(look.deck,rules);},setBusy:value=>{if(busy===value)return;busy=value;if(built)refresh();}};
 }

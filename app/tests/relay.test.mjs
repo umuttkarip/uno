@@ -28,6 +28,24 @@ test('HTTPS lobby accepts the same room name, starts with two ready players and 
   const host=await x.call('state',{token:a.token,key:a.key});assert.equal(host.state.players[0].hand.length,7);assert.equal(host.state.players[1].hand,undefined);assert.equal(JSON.stringify(host).includes(a.token),false);assert.equal(JSON.stringify(host).includes(b.token),false);
 });
 
+test('HTTPS normal and special games never penalize missed UNO, including old saved deadlines',async()=>{
+  for(const rules of ['classic','special']){
+    const x=await setup(),a=await x.enter('A','optional-uno','test',crypto.randomUUID(),rules),b=await x.enter('B','optional-uno','test');
+    await x.action(a,{type:'ready',round:0});await x.action(b,{type:'ready',round:0});
+    const row=x.db.prepare('SELECT payload FROM relay_rooms WHERE name=?').get(a.key),data=JSON.parse(row.payload),s=data.saved.state;
+    const cards=[...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)],pick=(color,value)=>cards.splice(cards.findIndex(c=>c.color===color&&c.value===value),1)[0];
+    s.players[0].hand=[pick('red','3'),pick('red','9')];s.players[1].hand=[pick('blue','3'),pick('blue','9')];s.pile=[pick('red','7')];const drawn=pick('green','4');s.deck=[...cards,drawn];s.color='red';s.turn=0;
+    data.saved.revision++;data.cursor++;x.db.prepare('UPDATE relay_rooms SET payload=?,version=version+1 WHERE name=?').run(JSON.stringify(data),a.key);
+    const current=await x.call('state',{key:a.key,token:a.token}),played=await x.action({...current,token:a.token},{type:'play',cardId:current.state.players[0].hand[0].id});
+    assert.equal(played.state.players[0].count,1);assert.equal(played.state.unoDeadline,null);
+    const legacy=JSON.parse(x.db.prepare('SELECT payload FROM relay_rooms WHERE name=?').get(a.key).payload);legacy.saved.state.vulnerable=0;legacy.saved.state.unoDeadline=10001;legacy.saved.unoRemaining=1000;
+    x.db.prepare('UPDATE relay_rooms SET payload=?,version=version+1 WHERE name=?').run(JSON.stringify(legacy),a.key);x.advance(3000);
+    const recipient=await x.call('state',{key:b.key,token:b.token});assert.equal(recipient.state.players[0].count,1);assert.equal(recipient.state.unoDeadline,null);
+    assert.equal((await x.action({...recipient,token:b.token},{type:'catch'})).status,409);
+    const accepted=await x.action({...recipient,token:b.token},{type:'draw'});assert.equal(accepted.status,200);assert.equal(accepted.state.players[0].count,1);assert.equal(accepted.state.players[1].count,3);assert.equal(accepted.state.lastUnoPenalty,null);
+  }
+});
+
 test('a special HTTPS lobby keeps its host rules for every join and rejects unknown rule sets',async()=>{
   const x=await setup(),a=await x.enter('A','special-room','test',crypto.randomUUID(),'special'),b=await x.enter('B','special-room','test');
   assert.equal(a.state.rules,'special');assert.equal(b.state.rules,'special');

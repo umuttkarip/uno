@@ -35,7 +35,7 @@ export class LocalGame {
     const s=this.authority.state;
     const ready=s.phase==='finished'&&s.players[0].ready&&!s.players[1].ready;
     if(!ready&&!(s.phase==='playing'&&s.turn===1))return;
-    const delay=Math.max(750+Math.random()*350,s.vulnerable===0&&s.unoDeadline?s.unoDeadline-Date.now()+100:0);
+    const delay=750+Math.random()*350;
     this.botTimer=setTimeout(()=>{this.botTimer=null;if(this.closed)return;const command=botCommand(this.authority.snapshot(1).state,1);if(command){try{this.authority.play(1,command,this.authority.revision);this.publish();}catch(error){this.onError?.(error.message);}}},delay);
   }
   async action(command){if(this.closed)throw new Error('Oyun kapandı.');if(this.presentation)throw new Error('Kartlar yerleşiyor.');this.authority.play(0,command,this.version);this.publish();}

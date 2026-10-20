@@ -18,8 +18,10 @@ for(const value of ['skip','reverse'])test(`${value} keeps the turn and allows t
   room.play(0,{type:'play',cardId:last.id},room.revision);assert.equal(s.phase,'finished');assert.equal(s.winner,0);assert.equal(s.players[0].hand.length,0);assert.equal(s.lastUnoPenalty,null);
 });
 
-test('an old saved same-player UNO deadline cannot penalize a continuing turn',()=>{
-  const {room,advance}=game(),s=room.state;s.players[0].hand=[{id:'last',color:s.color,value:'9'}];s.vulnerable=0;s.unoDeadline=100001;
-  const saved=structuredClone(room.checkpoint());advance(UNO_DURATION+100);const restored=new RoomAuthority('','','',{now:room.now,saved});
-  assert.equal(restored.expireUno(),false);assert.equal(restored.state.players[0].hand.length,1);assert.equal(restored.state.vulnerable,null);assert.equal(restored.state.unoDeadline,null);
+test('old saved UNO deadlines are cleared on either turn without changing hands or draw penalties',()=>{
+  for(const turn of [0,1]){
+    const {room,advance}=game(),s=room.state;s.players[0].hand=[{id:'last',color:s.color,value:'9'}];s.turn=turn;s.vulnerable=0;s.unoDeadline=100001;s.pendingDraw={count:6,value:'wild4'};
+    const saved=structuredClone(room.checkpoint());saved.unoRemaining=1000;advance(UNO_DURATION+100);const restored=new RoomAuthority('','','',{now:room.now,saved});
+    assert.equal(restored.expireUno(),false);assert.equal(restored.state.players[0].hand.length,1);assert.equal(restored.state.vulnerable,null);assert.equal(restored.state.unoDeadline,null);assert.equal(restored.unoRemaining,null);assert.equal(restored.state.pendingDraw.count,6);
+  }
 });

@@ -37,6 +37,13 @@ export function planTransition(previous,next) {
   };
 }
 
+export function cardLayoutChanged(previous,next,plan=planTransition(previous,next)) {
+  if(!previous||plan.deal||plan.topChanged||plan.added.length||plan.removed.length)return true;
+  if(previous.me!==next.me||previous.players.length!==next.players.length)return true;
+  if(next.players.some((p,i)=>p.name!==previous.players[i].name||p.count!==previous.players[i].count))return true;
+  return next.players[next.me].hand.some((c,i)=>c.id!==previous.players[previous.me].hand[i]?.id);
+}
+
 export class TableMotion {
   constructor({hand,opponent,discard,deck,scroll}) {
     Object.assign(this,{hand,opponent,discard,deck,scroll});
@@ -158,6 +165,7 @@ export class TableMotion {
     this.compact=matchMedia('(max-width:700px), (pointer:coarse)').matches;
     const generation=this.generation;
     const plan=planTransition(previous,state);
+    if(!cardLayoutChanged(previous,state,plan)){this.updateInteraction(state,{blocked:true,present});return;}
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const beforeOwn=this.capture(this.own),beforeOther=this.capture(this.other);
     const ownSource=plan.ownPlayed?this.geometry(this.own.get(plan.ownPlayed.id)?.firstElementChild):null;

@@ -1,4 +1,4 @@
-import {TableMotion,planTransition,PLAY_DURATION,FOLLOWUP_DELAY} from './table-motion.js';
+import {TableMotion,planTransition,cardLayoutChanged,PLAY_DURATION,FOLLOWUP_DELAY} from './table-motion.js';
 import {card,face} from './cards.js';
 import {cardSound,bombSound} from './card-audio.js';
 import {LABELS,COLOR_NAMES} from '../src/engine.js';
@@ -22,6 +22,7 @@ export class MultiTableMotion extends TableMotion {
   async update(previous,state,{present=true}={}){
     this.compact=matchMedia('(max-width:700px), (pointer:coarse)').matches;
     const generation=this.generation,plan=planTransition(previous,state),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(!cardLayoutChanged(previous,state,plan)){this.updateInteraction(state,{blocked:true,present});this.syncReveals(state);return;}
     const placements=seating(state),narrow=matchMedia('(max-width:700px)').matches;
     for(const {index,seat}of placements){let rival=this.rivals.get(index);if(!rival){rival={nodes:new Map()};this.rivals.set(index,rival);}rival.container=this.seats[seat].hand;rival.seat=seat;}
     const beforeOwn=this.capture(this.own),beforeOther=new Map([...this.rivals].map(([index,r])=>[index,this.capture(r.nodes)]));

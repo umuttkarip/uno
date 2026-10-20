@@ -65,15 +65,9 @@ function finishRound(s,index) {
   log(s,`${p.name} eli kazandı! +${gain} puan.`);
 }
 export function penalizeUno(s) {
-  const index=s.vulnerable,p=s.players[index];
-  s.vulnerable=null;s.unoDeadline=null;
-  if(!p||p.hand.length!==1||p.uno||s.turn===index)return false;
-  p.hand.push(...take(s,2));p.uno=false;
-  s.finishOrder=(s.finishOrder??[]).filter(i=>!s.players[i].hand.length);
-  log(s,`${p.name} UNO demedi ve 2 kart çekti.`);
-  s.lastUnoPenalty={player:index,seq:s.seq};
-  s.lastMove={type:'uno-penalty',player:index,seq:s.seq};
-  return true;
+  // UNO is an optional announcement. Clear penalty metadata from older games.
+  s.vulnerable=null;s.unoDeadline=null;s.lastUnoPenalty=null;
+  return false;
 }
 export function act(s,index,a) {
   const p=s.players[index];
@@ -90,8 +84,7 @@ export function act(s,index,a) {
     p.uno=true;if(s.vulnerable===index){s.vulnerable=null;s.unoDeadline=null;}log(s,`${p.name}: UNO!`);s.lastUnoCall={player:index,seq:s.seq};return;
   }
   if(a.type==='catch') {
-    if(s.vulnerable===null||s.vulnerable===index||s.turn===s.vulnerable||s.players[s.vulnerable]?.uno||s.players[s.vulnerable]?.hand.length!==1) throw new Error('Şu anda yakalanacak bir UNO yok.');
-    penalizeUno(s);return;
+    throw new Error('UNO cezası kapalı.');
   }
   if(s.turn!==index) throw new Error('Şu anda sıra arkadaşında.');
   if(a.type==='draw') {
@@ -152,7 +145,7 @@ export function act(s,index,a) {
   s.insights=(s.insights??[]).filter(x=>s.players.some(owner=>owner.hand.some(card=>card.id===x.cardId)));
   if(p.hand.length===1) {
     p.uno=a.uno===true;
-    if(p.uno){log(s,`${p.name}: UNO!`);s.lastUnoCall={player:index,seq:s.seq};}else if(s.turn!==index)s.vulnerable=index;
+    if(p.uno){log(s,`${p.name}: UNO!`);s.lastUnoCall={player:index,seq:s.seq};}
   }
   if(!p.hand.length){s.finishOrder??=[];if(!s.finishOrder.includes(index))s.finishOrder.push(index);}
   if(!p.hand.length&&!s.pendingDraw)finishRound(s,index);

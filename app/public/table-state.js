@@ -21,7 +21,6 @@ export function messageSender(message,state){
 export function feedback(previous,state){
   if(!previous||previous.round!==state.round)return [];
   const events=[];
-  if(state.lastUnoPenalty?.seq!==previous.lastUnoPenalty?.seq&&state.lastUnoPenalty?.player===state.me)events.push({player:state.me,text:'UNO demedin. +2 kart.',private:true});
   if(state.lastUnoCall&&state.lastUnoCall.seq!==previous.lastUnoCall?.seq)events.push({player:state.lastUnoCall.player,text:'UNO',uno:true});
   return events;
 }

@@ -25,7 +25,7 @@ $('deck-face').innerHTML=back();
 const seats={top:{zone:$('opponent-zone-top'),name:$('opponent-name'),hand:$('opponent-hand')},left:{zone:$('opponent-zone-left'),name:$('left-name'),hand:$('left-hand')},right:{zone:$('opponent-zone-right'),name:$('right-name'),hand:$('right-hand')},upperLeft:{zone:$('opponent-zone-upper-left'),name:$('upper-left-name'),hand:$('upper-left-hand')},upperRight:{zone:$('opponent-zone-upper-right'),name:$('upper-right-name'),hand:$('upper-right-hand')}};
 const motion=new MultiTableMotion({hand:$('hand'),seats,discard:$('discard'),deck:$('draw'),scroll:$('hand-scroll')});
 function restyle(){if(moving){restylePending=true;return;}$('deck-face').innerHTML=back();if(state)motion.restyle(state);restylePending=false;}
-const appearance=mountAppearance({onDeckChange:restyle,onError:notice});
+const appearance=mountAppearance({onDeckChange:restyle,onError:notice,rules});
 function renderHistory(){const stats=readStats($('name').value.trim());$('home-stats').hidden=!stats?.played;if(!stats)return;$('stats-name').textContent=stats.name;for(const key of ['played','wins','losses'])$('stats-'+key).textContent=stats[key];}
 $('name').addEventListener('input',renderHistory);renderHistory();
 function setMode(value){mode=value==='bot'?'bot':'group';for(const button of document.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));$('room').hidden=mode==='bot';$('room-label').hidden=mode==='bot';$('room').required=mode!=='bot';}
@@ -102,8 +102,8 @@ $('entry-form').addEventListener('submit',async event=>{
     onPresence:online=>{if(connection!==current)return;present=online;document.body.classList.toggle('disconnected',!online);renderControls();}
   });
   try{
-    await appearance.ensureDeck(rules);if(connection!==current)return;restyle();
-    await current.enter(name,room,{rules});if(connection!==current)return;
+    restyle();
+    await Promise.all([appearance.ensureDeck(rules),current.enter(name,room,{rules})]);if(connection!==current)return;
     rememberPlayer(name);
     const url=new URL(location.href);url.searchParams.delete('name');url.searchParams.delete('room');
     if(mode==='bot'){url.searchParams.delete('masa');url.searchParams.set('modo','bot');}else{url.searchParams.set('masa',room);url.searchParams.set('modo','group');}

@@ -1,4 +1,4 @@
-import {build} from 'esbuild';
+import {build,transform} from 'esbuild';
 import {mkdir,copyFile,writeFile,readFile} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -8,7 +8,7 @@ import {copyTableBackgrounds} from './table-proposals.mjs';
 const preview=process.env.UNO_DESIGN_PREVIEW==='1',output=preview?'preview':'web';
 await mkdir(output,{recursive:true});
 await build({entryPoints:['public/game.js'],bundle:true,format:'esm',target:['es2022'],outfile:join(output,'app.js'),minify:true,legalComments:'eof',define:{__UNO_DESIGN_PREVIEW__:String(preview)}});
-const css=await readFile('public/style.css','utf8')+'\n'+await readFile('public/polish.css','utf8');
+const {code:css}=await transform(await readFile('public/style.css','utf8')+'\n'+await readFile('public/polish.css','utf8'),{loader:'css',minify:true,target:'es2022'});
 await writeFile(join(output,'style.css'),css);
 const hash=createHash('sha256').update(await readFile(join(output,'app.js'))).update(css).digest('hex').slice(0,12);
 const approvedStyle=preview||TABLE_DESIGNS_APPROVED||CARD_DESIGNS_APPROVED;

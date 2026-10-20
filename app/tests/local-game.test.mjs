@@ -81,20 +81,18 @@ test('a final penalty grants a full response turn after landing, then times out 
   q.ack();q.tick(TURN_DURATION*2);assert.equal(s.players[0].hand.length,4);assert.equal(s.players[1].wins,1);
 });
 
-test('UNO grace starts after the card lands; forgetting it is distinct from the computer final +2',async t=>{
+test('missing UNO adds no cards, waits for no grace period and never enlarges the computer final +2',async t=>{
   const q=await setup(t),s=fixed(q.game,[red('3'),blue('9')],[red('draw2')]);q.ack();
   await q.game.action({type:'play',cardId:s.players[0].hand[0].id});
   q.tick(5000);assert.equal(s.players[0].hand.length,1);assert.equal(s.players[1].hand.length,1);
-  q.ack();q.tick(UNO_DURATION-250);assert.equal(s.players[0].hand.length,1);q.tick(250);
-  assert.equal(s.players[0].hand.length,3);assert.equal(s.lastUnoPenalty.player,0);
-  assert.equal(s.pendingDraw,null);assert.equal(s.players[1].hand.length,1);
-  const uno=q.states.at(-1);q.tick(6000);assert.equal(s.players[1].hand.length,1);
-  q.ack();q.tick(750);assert.equal(s.pendingDraw.count,2);assert.equal(s.players[0].hand.length,3);
-  assert.equal(q.states.at(-1).state.lastUnoPenalty.seq,uno.state.lastUnoPenalty.seq);
-  assert.equal(planTransition(uno.state,q.states.at(-1).state).added.length,0);
+  q.ack();q.tick(750);assert.equal(s.players[0].hand.length,1);assert.equal(s.lastUnoPenalty,null);
+  assert.equal(s.pendingDraw.count,2);assert.equal(s.players[1].hand.length,0);
+  q.tick(UNO_DURATION*3);assert.equal(s.players[0].hand.length,1);
+  q.ack();await q.game.action({type:'draw'});assert.equal(s.players[0].hand.length,3);
+  assert.equal(s.winner,1);assert.equal(s.lastUnoPenalty,null);
 });
 
-test('pressing UNO after the visual landing prevents the penalty and the bot still cannot auto-draw for a human',async t=>{
+test('optional UNO after the visual landing stays visible and the bot still cannot auto-draw for a human',async t=>{
   const q=await setup(t),s=fixed(q.game,[red('3'),four],[red('draw2')]);q.ack();
   await q.game.action({type:'play',cardId:s.players[0].hand[0].id});q.tick(5000);q.ack();
   q.tick(500);await q.game.action({type:'uno'});q.ack();q.tick(750);

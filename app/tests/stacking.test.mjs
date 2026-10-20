@@ -76,9 +76,9 @@ test('accepting a penalty reshuffles old discards without losing cards or changi
   assert.deepEqual([...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)].map(c=>c.id).sort(),before);
 });
 
-test('UNO announcement and catching a missed UNO do not replace the pending card penalty',()=>{
+test('optional UNO never adds cards to or replaces the pending card penalty',()=>{
   const two=c('red','draw2'),four=c('wild','wild4');const s=game([two,c('blue','8')],[four,c('red','9')]);play(s,0,two,'blue',{uno:false});
-  act(s,1,{type:'catch'});assert.equal(s.players[0].hand.length,3);assert.equal(s.pendingDraw.count,2);assert.equal(s.turn,1);play(s,1,four,'green',{uno:true});
+  assert.throws(()=>act(s,1,{type:'catch'}));assert.equal(s.players[0].hand.length,1);assert.equal(s.pendingDraw.count,2);assert.equal(s.turn,1);play(s,1,four,'green',{uno:true});
   assert.equal(s.players[1].uno,true);assert.equal(s.pendingDraw.count,6);
 });
 

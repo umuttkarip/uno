@@ -76,16 +76,17 @@ test('UNO is enabled only at one card and its declaration is visible to every op
   assert.equal(controls(view(s,0)).canUno,false);
 });
 
-test('UNO penalties produce a chat notice only for the affected player',()=>{
+test('missed UNO and legacy penalty metadata never produce a penalty notice',()=>{
   const room=playing(6),s=room.state;s.pile=[card('red','7')];s.color='red';const played=card('red','3');s.players[0].hand=[played,card('blue','9')];act(s,0,{type:'play',cardId:played.id});const previous=s.players.map((p,i)=>structuredClone(view(s,i)));act(s,1,{type:'draw'});
-  for(let me=0;me<6;me++){const events=feedback(previous[me],view(s,me));assert.equal(events.length,me===0?1:0);if(me===0)assert.equal(events[0].private,true);}
+  assert.equal(s.players[0].hand.length,1);s.lastUnoPenalty={player:0,seq:s.seq};
+  for(let me=0;me<6;me++)assert.deepEqual(feedback(previous[me],view(s,me)),[]);
 });
 
-for(let n=3;n<=6;n++)test(`${n}-player skip and reverse still require UNO when the turn actually changes`,()=>{
+for(let n=3;n<=6;n++)test(`${n}-player skip and reverse never require an UNO declaration`,()=>{
   for(const value of ['skip','reverse']){
     const room=playing(n),s=room.state,played=card('red',value);s.pile=[card('red','7')];s.color='red';s.players[0].hand=[played,card('red','9')];
-    room.play(0,{type:'play',cardId:played.id},room.revision);assert.notEqual(s.turn,0);assert.equal(s.vulnerable,0);assert.ok(s.unoDeadline);
-    room.play(s.turn,{type:'draw'},room.revision);assert.equal(s.players[0].hand.length,3);assert.equal(s.lastUnoPenalty.player,0);
+    room.play(0,{type:'play',cardId:played.id},room.revision);assert.notEqual(s.turn,0);assert.equal(s.vulnerable,null);assert.equal(s.unoDeadline,null);
+    room.play(s.turn,{type:'draw'},room.revision);assert.equal(s.players[0].hand.length,1);assert.equal(s.lastUnoPenalty,null);
   }
 });
 
