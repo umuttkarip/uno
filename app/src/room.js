@@ -64,7 +64,7 @@ export class RoomAuthority {
     if (!emote && (typeof text !== 'string' || !text.trim() || [...text.trim()].length > 120)) throw new Error('Mesaj 1–120 karakter olmalı.');
     this.lastMessages.set(index, this.now());
     this.touch();
-    return {id: crypto.randomUUID(), player: index, text: emote || text.trim().replace(/[\x00-\x1f]/g, ' '), emote: !!emote};
+    return {id: crypto.randomUUID(), player: index, name: this.state.players[index].name, text: emote || text.trim().replace(/[\x00-\x1f]/g, ' '), emote: !!emote};
   }
 
   restartTurn() {this.state.turnDeadline = this.state.phase === 'playing' ? this.now() + TURN_DURATION : null; this.remaining = null;}

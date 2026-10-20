@@ -6,6 +6,7 @@ import {relayApi} from '../src/relay-api.js';
 import {IDLE_LIMIT} from '../src/room.js';
 import {TableConnection} from '../src/relay-network.js';
 import {botCommand} from '../src/bot.js';
+import {messageSender} from '../public/table-state.js';
 
 async function setup(){
   const db=new DatabaseSync(':memory:');db.exec(await readFile(new URL('../drizzle/0001_relay_rooms.sql',import.meta.url),'utf8'));let time=10000;
@@ -166,4 +167,31 @@ test('browser HTTP transport restores snapshots, deduplicates message delivery a
   const client=new TableConnection({onState:()=>states++,onMessage:()=>messages++},{fetch:transport,base:'https://relay.test/api/v1/'});
   await client.enter('A','23');assert.equal(states,1);await client.action({type:'ready',round:0});assert.equal(states,2);
   const event={id:'same',text:'UNO',player:0};client.apply({messages:[event,event]});assert.equal(messages,1);client.shutdown();assert.equal(client.controllers.size,0);
+});
+
+test('chat names and own bubbles survive lobby departures, new joins and queued old messages',async()=>{
+  const x=await setup(),a=await x.enter('A'),b=await x.enter('B'),c=await x.enter('C');
+  const before=c.state;
+  const old=await x.call('message',{token:b.token,body:{key:b.key,id:crypto.randomUUID(),message:{text:'Önceki mesaj'}}});
+  await x.call('leave',{token:a.token,body:{key:a.key}});x.advance(700);
+  await x.call('message',{token:b.token,body:{key:b.key,id:crypto.randomUUID(),message:{emote:'seal-happy'}}});
+  const after=await x.call('state',{token:c.token,key:c.key});
+  assert.deepEqual(after.state.players.map(p=>p.name),['B','C']);
+  const shown=[],client=new TableConnection({onMessage:message=>shown.push(messageSender(message,before))});
+  client.apply(after);client.shutdown();
+  assert.deepEqual(shown,[{name:'B',own:false},{name:'B',own:false}]);
+  assert.deepEqual(messageSender(old.messages[0],after.state),{name:'B',own:false});
+  const own=await x.call('message',{token:c.token,body:{key:c.key,id:crypto.randomUUID(),message:{text:'Benim mesajım'}}});
+  assert.deepEqual(messageSender(own.messages.at(-1),before),{name:'C',own:true});
+  assert.deepEqual(messageSender(own.messages.at(-1),after.state),{name:'C',own:true});
+  const d=await x.enter('D');
+  const welcome=await x.call('message',{token:d.token,body:{key:d.key,id:crypto.randomUUID(),message:{text:'Katıldım'}}});
+  assert.deepEqual(messageSender(welcome.messages.at(-1),after.state),{name:'D',own:false});
+});
+
+test('UNO notices, private feedback and legacy messages still use their current player name',()=>{
+  const state={me:1,players:[{name:'A'},{name:'B'}]};
+  assert.deepEqual(messageSender({player:0,uno:true,text:'UNO'},state),{name:'A',own:false});
+  assert.deepEqual(messageSender({player:1,private:true,text:'UNO demedin.'},state),{name:'B',own:true});
+  assert.equal(messageSender({player:9},state),null);assert.equal(messageSender({name:'A'},null),null);
 });

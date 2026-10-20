@@ -4,7 +4,7 @@ import {back,face} from './cards.js';
 import {nextPlayChoice} from './play-choice.js';
 import {MultiTableMotion,seating} from './table-motion-multi.js';
 import {LocalGame} from '../src/local-game.js';
-import {controls,chosenColor,feedback} from './table-state.js';
+import {controls,chosenColor,feedback,messageSender} from './table-state.js';
 import {unlockAudio,prepareAudio,installAudioUnlock} from './card-audio.js';
 import {EXPRESSIONS,expression,expressionImage,preloadExpressions} from './expressions.js';
 import {mountAppearance} from './appearance.js';
@@ -260,10 +260,10 @@ $('message').addEventListener('input',updateSend);
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('message').value.trim();if(text)void sendMessage({text});};
 for(const id of ['emotes','stickers'])$(id).onclick=event=>{const emote=event.target.closest('[data-emote]')?.dataset.emote;if(emote)void sendMessage({emote});};
 function showMessage(message){
-  if(!state||!state.players[message.player])return;
+  const sender=messageSender(message,state);if(!sender)return;
   const item=message.emote?expression(message.text):null;
-  const bubble=document.createElement('div');bubble.className='message'+(message.player===state.me?' own':'')+(item?' is-emote':'')+(item?.sticker?' is-sticker':'')+(message.private?' private-message':'')+(message.uno?' uno-message':'');
-  if(!message.private){const name=document.createElement('strong');name.textContent=state.players[message.player].name;bubble.append(name);}
+  const bubble=document.createElement('div');bubble.className='message'+(sender.own?' own':'')+(item?' is-emote':'')+(item?.sticker?' is-sticker':'')+(message.private?' private-message':'')+(message.uno?' uno-message':'');
+  if(!message.private){const name=document.createElement('strong');name.textContent=sender.name;bubble.append(name);}
   if(item){const content=document.createElement('span');content.innerHTML=expressionImage(message.text);bubble.append(content);}
   else{const text=document.createElement('span');text.textContent=message.text;bubble.append(text);}
   $('messages').append(bubble);

@@ -11,6 +11,13 @@ export function controls(state,{busy=false,moving=false,present=true}={}){
 
 export function chosenColor(state){return state.top?.color==='wild'&&COLOR_NAMES[state.color]?{color:state.color,label:COLOR_NAMES[state.color]}:null;}
 
+export function messageSender(message,state){
+  if(!state)return null;
+  const name=message.name??state.players[message.player]?.name;
+  if(name===undefined)return null;
+  return {name,own:message.name!==undefined?name===state.players[state.me]?.name:message.player===state.me};
+}
+
 export function feedback(previous,state){
   if(!previous||previous.round!==state.round)return [];
   const events=[];
