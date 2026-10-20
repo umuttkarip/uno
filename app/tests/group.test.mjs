@@ -13,16 +13,16 @@ const card=(color,value)=>({id:crypto.randomUUID(),color,value});
 function group(n){const room=new RoomAuthority('Grup','A',crypto.randomUUID(),{mode:'group'});for(let i=1;i<n;i++)room.join(String.fromCharCode(65+i),crypto.randomUUID());return room;}
 function playing(n){const room=group(n);if(room.state.phase==='waiting'){const revision=room.revision;for(let i=0;i<n;i++)room.play(i,{type:'ready',round:0},revision);}return room;}
 
-for(let n=2;n<=5;n++)test(`${n} group players start only when all are ready, including concurrent approvals`,()=>{
+for(let n=2;n<=6;n++)test(`${n} group players start only when all are ready, including concurrent approvals`,()=>{
   const room=group(n),revision=room.revision;assert.equal(room.state.capacity,6);assert.equal(room.state.phase,'waiting');
   for(let i=0;i<n;i++){room.play(i,{type:'ready',round:0},revision);assert.equal(room.state.phase,i===n-1?'playing':'waiting');}
   assert.deepEqual(room.state.players.map(p=>p.hand.length),Array(n).fill(7));assert.equal(room.state.deck.length,107-7*n);
   for(let me=0;me<n;me++){const snapshot=room.snapshot(me);assert.equal(snapshot.state.players.filter(p=>p.hand).length,1);assert.equal(snapshot.state.players[me].hand.length,7);}
 });
 
-test('sixth player starts automatically, one player cannot start, and a live hand cannot gain a new seat',()=>{
+test('a full lobby still needs ready approvals, one player cannot start, and a live hand cannot gain a new seat',()=>{
   const alone=group(1);alone.play(0,{type:'ready',round:0},alone.revision);assert.equal(alone.state.phase,'waiting');assert.throws(()=>alone.play(0,{type:'start'},alone.revision));
-  const full=group(6);assert.equal(full.state.phase,'playing');assert.deepEqual(full.state.players.map(p=>p.hand.length),Array(6).fill(7));assert.throws(()=>full.join('G',crypto.randomUUID()));
+  const full=group(6);assert.equal(full.state.phase,'waiting');assert.deepEqual(full.state.players.map(p=>p.hand.length),Array(6).fill(0));assert.throws(()=>full.join('G',crypto.randomUUID()));
   const started=playing(3);assert.throws(()=>started.join('D',crypto.randomUUID()),/oyun başladı/);
   const player=started.state.players[1];assert.equal(started.join(player.name,player.token),1);
 });

@@ -34,7 +34,7 @@ export class RoomAuthority {
     if (this.state.phase!=='waiting') throw new Error('Bu masada oyun başladı.');
     if (this.state.players.some(p=>name.trim().toLocaleLowerCase('tr-TR') === p.name.toLocaleLowerCase('tr-TR'))) throw new Error('Farklı bir ad yaz.');
     const player=newPlayer(name, token);this.state.players.push(player);
-    if(this.state.players.length===this.state.capacity){startRound(this.state);this.restartTurn();}
+    if(this.state.mode!=='group'&&this.state.players.length===this.state.capacity){startRound(this.state);this.restartTurn();}
     this.revision++;
     this.touch();
     return this.state.players.length-1;

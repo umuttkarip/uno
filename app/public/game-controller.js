@@ -1,4 +1,4 @@
-import {TableConnection} from '../src/network.js';
+import {TableConnection,tableSessionKey} from '../src/network.js';
 import {COLORS,roomKey,LABELS} from '../src/engine.js';
 import {back} from './cards.js';
 import {MultiTableMotion,seating} from './table-motion-multi.js';
@@ -244,4 +244,4 @@ window.addEventListener('pointermove',event=>{if(!drag)return;const delta=event.
 function endDrag(){if(drag?.moved)suppressClickUntil=Date.now()+250;drag=null;$('hand-scroll').classList.remove('dragging');}
 window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
 window.addEventListener('pagehide',()=>connection?.shutdown());
-try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem(storageKey('uno-solo-v1'))):roomParam?JSON.parse(sessionStorage.getItem(storageKey('uno-v7:'+roomKey(roomParam)))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}
+try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem(storageKey('uno-solo-v1'))):roomParam?JSON.parse(sessionStorage.getItem(tableSessionKey(roomParam))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}

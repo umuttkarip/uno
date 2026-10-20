@@ -1,1 +1,1 @@
-export {TableConnection} from './table-network.js';
+export {TableConnection,tableSessionKey} from './relay-network.js';
