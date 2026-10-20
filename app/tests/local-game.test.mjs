@@ -25,6 +25,13 @@ function fixed(game,human,bot,{turn=0}={}){
 }
 const red=value=>['red',value],blue=value=>['blue',value],four=['wild','wild4'];
 
+for(const value of ['skip','reverse'])test(`computer mode does not demand UNO while ${value} leaves the human in control`,async t=>{
+  const q=await setup(t),s=fixed(q.game,[red(value),red('9')],[blue('3'),blue('4')]);q.ack();
+  await q.game.action({type:'play',cardId:s.players[0].hand[0].id});q.ack();q.tick(UNO_DURATION+1000);
+  assert.equal(s.turn,0);assert.equal(s.players[0].hand.length,1);assert.equal(s.lastUnoPenalty,null);assert.equal(s.unoDeadline,null);
+  await q.game.action({type:'play',cardId:s.players[0].hand[0].id});assert.equal(s.winner,0);assert.equal(s.players[0].hand.length,0);assert.deepEqual(q.errors,[]);
+});
+
 test('local bot waits for the actual rendered move, even when animations take several seconds',async t=>{
   const q=await setup(t),s=fixed(q.game,[red('3'),blue('9')],[red('draw2')],{turn:1});
   q.tick(6000);assert.equal(s.players[1].hand.length,1);assert.equal(s.pendingDraw,null);

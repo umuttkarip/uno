@@ -76,6 +76,20 @@ test('refresh restores the same player, while a reused HTTP command never draws 
   const first=await x.action(restored,{type:'draw'},id),retry=await x.action(restored,{type:'draw'},id);assert.equal(first.status,200);assert.deepEqual(retry.state.players[0].hand,first.state.players[0].hand);assert.equal(retry.version,first.version);
 });
 
+test('HTTPS skip and reverse keep a final-card continuation free of UNO penalties',async()=>{
+  for(const value of ['skip','reverse']){
+    const x=await setup(),a=await x.enter('A'),b=await x.enter('B');await x.action(a,{type:'ready',round:0});await x.action(b,{type:'ready',round:0});
+    const row=x.db.prepare('SELECT payload FROM relay_rooms WHERE name=?').get(a.key),data=JSON.parse(row.payload),s=data.saved.state;
+    const cards=[...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)];const pick=(color,value)=>cards.splice(cards.findIndex(c=>c.color===color&&c.value===value),1)[0];
+    s.players[0].hand=[pick('red',value),pick('red','9')];s.players[1].hand=cards.splice(0,7);s.pile=[pick('red','7')];s.deck=cards;s.color='red';s.turn=0;data.saved.revision++;data.cursor++;
+    x.db.prepare('UPDATE relay_rooms SET payload=?,version=version+1 WHERE name=?').run(JSON.stringify(data),a.key);
+    const before=await x.call('state',{key:a.key,token:a.token});const first=await x.action({...before,token:a.token},{type:'play',cardId:before.state.players[0].hand[0].id});
+    assert.equal(first.state.turn,0);assert.equal(first.state.unoDeadline,null);x.advance(3000);
+    const continued=await x.call('state',{key:a.key,token:a.token});assert.equal(continued.state.players[0].hand.length,1);assert.equal(continued.state.lastUnoPenalty,null);
+    const end=await x.action({...continued,token:a.token},{type:'play',cardId:continued.state.players[0].hand[0].id});assert.equal(end.state.winner,0);assert.equal(end.state.players[0].hand.length,0);
+  }
+});
+
 test('quiet heartbeat responses do not resend cards; expired presence pauses and reconnect resumes the turn',async()=>{
   const x=await setup(),a=await x.enter('A'),b=await x.enter('B');await x.action(a,{type:'ready',round:0});const game=await x.action(b,{type:'ready',round:0});
   x.advance(13000);const quiet=await x.call('state',{token:a.token,key:a.key,after:game.cursor});assert.equal(quiet.unchanged,true);assert.equal(quiet.state,undefined);

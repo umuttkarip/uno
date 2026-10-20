@@ -81,6 +81,14 @@ test('UNO penalties produce a chat notice only for the affected player',()=>{
   for(let me=0;me<6;me++){const events=feedback(previous[me],view(s,me));assert.equal(events.length,me===0?1:0);if(me===0)assert.equal(events[0].private,true);}
 });
 
+for(let n=3;n<=6;n++)test(`${n}-player skip and reverse still require UNO when the turn actually changes`,()=>{
+  for(const value of ['skip','reverse']){
+    const room=playing(n),s=room.state,played=card('red',value);s.pile=[card('red','7')];s.color='red';s.players[0].hand=[played,card('red','9')];
+    room.play(0,{type:'play',cardId:played.id},room.revision);assert.notEqual(s.turn,0);assert.equal(s.vulnerable,0);assert.ok(s.unoDeadline);
+    room.play(s.turn,{type:'draw'},room.revision);assert.equal(s.players[0].hand.length,3);assert.equal(s.lastUnoPenalty.player,0);
+  }
+});
+
 test('chosen joker colors stay explicit for both wild types and normal cards need no extra label',()=>{
   for(const value of ['wild','wild4'])for(const [color,label]of Object.entries({red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi'}))assert.deepEqual(chosenColor({top:card('wild',value),color}),{color,label});
   assert.equal(chosenColor({top:card('red','3'),color:'red'}),null);
