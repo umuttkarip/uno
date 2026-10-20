@@ -2,7 +2,7 @@ export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:
 let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
-const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':theme==='minecraft'&&sheet==='b'?'?v=2':''}`;
+const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':theme==='minecraft'?'?v=3':''}`;
 export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(id==='minecraft'?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
@@ -78,7 +78,7 @@ function backPrint(theme,preview){
   return `${field}${art(theme,31,{preview,x:-6,y:20,size:112})}<path d="M12 138h76" stroke="${f.ink}" stroke-width="1" opacity=".5"/>${palette.map((fill,i)=>`<path d="m${34+i*9} 137 4 4-4 4-4-4Z" fill="${fill}" stroke="${f.paper}" stroke-width=".7"/>`).join('')}`;
 }
 export function themedFace(c,back,theme,{preview=false}={}){
-  if(theme==='minecraft')return minecraftFace(c,back);
+  if(theme==='minecraft')return minecraftFace(c,back,preview);
   const f=family[theme];if(!f)return '';
   const color=colors[c.color]??colors.wild,wild=c.color==='wild',index=sceneIndex(c,back,theme);
   const prints={cats:catPrint,seal:sealPrint,kuromi:kuromiPrint,adventure:adventurePrint};
@@ -91,22 +91,26 @@ export function themedFace(c,back,theme,{preview=false}={}){
   return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="${theme}" style="overflow:hidden;border-radius:9% / 6%">${face}${corners}<g transform="rotate(180 50 75)">${corners}</g><rect x="1.7" y="1.7" width="96.6" height="146.6" rx="7.3" fill="none" stroke="${f.paper}" stroke-width="3.4"/><rect x="3.6" y="3.6" width="92.8" height="142.8" rx="5.4" fill="none" stroke="${f.ink}" stroke-width="${theme==='adventure'?1.1:.6}" opacity=".72"/></svg>`;
 }
 
-// Keep the UNO print separate from the illustration: flat field, white oval, corner marks.
-function minecraftArtwork(index){
+// Transparent character layers sit on the printed world; no image window or mask.
+function minecraftArtwork(index,{x=1,y=36,size=106,preview=false}={}){
+  if(preview)return `<image href="./assets/cards/minecraft-cover.webp?v=3" x="${x}" y="${y}" width="${size}" height="${size}"/>`;
   const local=index%16,column=local%4,row=Math.floor(local/4),sheet=['a','b','c','d'][Math.floor(index/16)];
-  return `<svg width="100" height="150" style="width:100%;height:100%;overflow:hidden" viewBox="${column*100} ${row*150} 100 150"><image href="${atlasFile('minecraft',sheet)}" width="400" height="600" preserveAspectRatio="none"/></svg>`;
+  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100"><image href="${atlasFile('minecraft',sheet)}" width="400" height="400"/></svg>`;
 }
-function minecraftFace(c,back){
-  const color=colors[c.color]??'#191b1a',paper='#fcfcf4';
-  const base=`<rect x=".6" y=".6" width="98.8" height="148.8" rx="9" fill="${paper}" stroke="#c4c7bd" stroke-width="1.2"/><rect x="5" y="5" width="90" height="140" rx="5.5" fill="${back?'#151b1d':color}"/>`;
-  let print;
+function minecraftPrint(color,wild){
+  const paper=wild?'#e9e2d0':'#fff5da',earth=wild?'#30273f':color===colors.blue?'#9abfc8':color===colors.red?'#bb7965':color===colors.yellow?'#cfaa61':'#739463';
+  const edge='M-4 91h13v-7h14v-7h14v-7h14v-7h14v-7h14v-7h14v-7h14V155H-4Z';
+  return `<rect width="100" height="150" fill="${wild?'#24202d':color}"/><path d="${edge}" fill="${paper}"/><path d="M-4 124h15v-7h18v7h18v8h20v-7h16v-8h21v34H-4Z" fill="${earth}"/><path d="M-4 139h22v-6h18v6h20v-6h18v-6h30v24H-4Z" fill="${wild?'#24202d':color}"/><path d="M47 37h10v-5h17v5h9v5H47Z" fill="${paper}" opacity=".75"/><path d="M13 103h8v7h-8m60-54h6v6h-6" fill="${earth}" opacity=".35"/>${wild?palette.map((fill,i)=>`<path d="M${5+i*25} ${132-i*5}h25v7h-25Z" fill="${fill}"/>`).join(''):''}`;
+}
+function minecraftFace(c,back,preview){
+  const color=colors[c.color]??'#24202d',paper='#fff7e3',ink='#253127',wild=c.color==='wild';let print;
   if(back){
-    print='<ellipse cx="50" cy="75" rx="31" ry="57" transform="rotate(28 50 75)" fill="#d90b28"/><text x="46" y="86" text-anchor="middle" transform="rotate(-24 50 75)" fill="#f5c400" stroke="#101517" stroke-width="2.5" paint-order="stroke" font-family="Arial,Helvetica,sans-serif" font-style="italic" font-weight="900" font-size="33" letter-spacing="-3">UNO</text>';
+    print=minecraftPrint(colors.green,false)+minecraftArtwork(60,{x:3,y:24,size:98,preview})+'<text x="48" y="139" text-anchor="middle" fill="#fff7e3" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="900" font-style="italic" letter-spacing="-.8">UNO</text>';
   }else{
-    const oval='<ellipse cx="50" cy="75" rx="35" ry="58" transform="rotate(28 50 75)"/>';
-    const art=`<defs><clipPath id="mc-illustration-oval">${oval}</clipPath></defs><g clip-path="url(#mc-illustration-oval)">${minecraftArtwork(sceneIndex(c,false,'minecraft'))}</g>`;
-    const corner=glyph(c.value,c.color==='yellow'?'#282923':paper,'none',0);
-    print=art+`<ellipse cx="50" cy="75" rx="35" ry="58" transform="rotate(28 50 75)" fill="none" stroke="${paper}" stroke-width="3.5"/>${corner}<g transform="rotate(180 50 75)">${corner}</g>`;
+    const index=sceneIndex(c,false,'minecraft'),special=['skip','reverse','draw2','wild','wild4'].includes(c.value);
+    print=minecraftPrint(color,wild)+minecraftArtwork(index,{x:special?-4:0,y:special?27:35,size:special?112:106});
+    const corner=glyph(c.value,c.color==='yellow'?ink:paper,ink,.65);
+    print+=corner+`<g transform="rotate(180 50 75)">${corner}</g>`;
   }
-  return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="minecraft"${back?'':` data-card-value="${c.value}"`} style="overflow:hidden;border-radius:9% / 6%">${base}${print}</svg>`;
+  return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="minecraft"${back?'':` data-card-value="${c.value}"`} style="overflow:hidden;border-radius:9% / 6%">${print}<rect x="1.7" y="1.7" width="96.6" height="146.6" rx="7.3" fill="none" stroke="${paper}" stroke-width="3.4"/><rect x="3.6" y="3.6" width="92.8" height="142.8" rx="5.4" fill="none" stroke="${ink}" stroke-width=".7" opacity=".65"/></svg>`;
 }

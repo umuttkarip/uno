@@ -29,6 +29,11 @@ test('Minecraft covers 64 distinct scenes with 43 number scenes and dedicated co
   const fronts=new Set(cards.map(c=>sceneIndex(c,false,'minecraft')));assert.equal(fronts.size,63);assert.equal(fronts.has(60),false);
   const back=face(cards[0],true,'minecraft');assert.doesNotMatch(back,/data-card-value/);assert.match(back,/>UNO<\/text>/);assert.equal(deckFiles('minecraft').length,4);
 });
+
+test('Minecraft illustrations are transparent layers rather than oval or rectangular photo windows',async()=>{
+  for(const sheet of ['a','b','c','d']){const data=await readFile(new URL('../public/assets/cards/minecraft-'+sheet+'.webp',import.meta.url));assert.equal(data.toString('ascii',12,16),'VP8X');assert.ok(data[20]&16,sheet+' must preserve alpha');}
+  for(const c of deck()){const front=face(c,false,'minecraft');assert.doesNotMatch(front,/<clipPath|<mask|<ellipse|linearGradient|radialGradient/);assert.match(front,/<image/);}
+});
 test('appearance preferences validate identifiers and tolerate disabled storage',()=>{
   let saved;const store={getItem:()=>saved,setItem:(key,value)=>saved=value};assert.deepEqual(readAppearance(store),{table:'green',deck:'classic'});
   for(const table of TABLES)for(const deck of DECKS){saveAppearance({table:table.id,deck:deck.id},store);assert.deepEqual(readAppearance(store),{table:table.id,deck:deck.id});}
