@@ -15,6 +15,7 @@ export class MultiTableMotion extends TableMotion {
   restyle(state){super.restyle(state);for(const rival of this.rivals.values())for(const slot of rival.nodes.values()){slot.firstElementChild.innerHTML=face({color:'wild'},true);slot.dataset.revealed='restyle';}this.syncReveals(state);}
   syncReveals(state){
     for(const [index,rival]of this.rivals){const known=(state.revealed??[]).filter(item=>item.player===index);let i=0;
+      rival.container.setAttribute('aria-label',known.length?`${state.players[index].count} kart, ${known.length} kart açık`:`${state.players[index].count} kapalı kart`);
       for(const slot of rival.nodes.values()){const item=known[i++],id=item?.card.id??'';if(slot.dataset.revealed!==id){slot.firstElementChild.innerHTML=item?face(item.card):face({color:'wild'},true);slot.dataset.revealed=id;}slot.classList.toggle('revealed-card',!!item);if(item){slot.setAttribute('role','img');slot.setAttribute('aria-label',state.players[index].name+' · '+COLOR_NAMES[item.card.color]+' '+(LABELS[item.card.value]??item.card.value));}else{slot.removeAttribute('role');slot.removeAttribute('aria-label');}}
     }
   }
@@ -29,6 +30,16 @@ export class MultiTableMotion extends TableMotion {
     const opponentSource=plan.opponentPlayed?this.geometry([...actor?.nodes.values()??[]].at(-1)?.firstElementChild):null;
     const deckSource=this.geometry(this.deck);
     const transferSources=new Map(state.players.map((_,index)=>[index,index===state.me?this.geometry([...this.own.values()][0]?.firstElementChild):this.geometry([...this.rivals.get(index)?.nodes.values()??[]].at(-1)?.firstElementChild)]));
+    // Keep the old hands on the table until the transfer card actually lands.
+    let stagedTop;
+    if(plan.transfers.length&&plan.topChanged){
+      const template=document.createElement('template');template.innerHTML=card(state.top);stagedTop=template.content.firstElementChild;this.discard.append(stagedTop);stagedTop.style.visibility='hidden';
+      const playedNode=plan.ownPlayed?this.own.get(plan.ownPlayed.id)?.firstElementChild:[...actor?.nodes.values()??[]].at(-1)?.firstElementChild;if(playedNode)playedNode.style.visibility='hidden';
+      cardSound('play',reduced?0:305);
+      await this.fly(plan.ownPlayed?ownSource:opponentSource,this.geometry(stagedTop),{c:state.top,reveal:!plan.ownPlayed,target:stagedTop,duration:PLAY_DURATION,reduced});
+      if(this.generation!==generation)return;
+      for(const node of [...this.discard.children])if(node!==stagedTop)node.remove();
+    }
     if(plan.deal){this.own.clear();this.hand.replaceChildren();for(const rival of this.rivals.values()){rival.nodes.clear();rival.container.replaceChildren();}}
     const n=state.players[state.me].hand.length;
     this.hand.style.setProperty('--overlap',(n>10?43:n>7?34:28)+'px');
@@ -39,14 +50,14 @@ export class MultiTableMotion extends TableMotion {
     }
     if(plan.added.length&&!plan.deal&&!this.scroll.classList.contains('dragging')){const target=rect(this.own.get(plan.added.at(-1).id)),viewport=rect(this.scroll);if(usable(target)&&usable(viewport)){if(target.right>viewport.right-20)this.scroll.scrollLeft+=target.right-viewport.right+20;else if(target.left<viewport.left+20)this.scroll.scrollLeft-=viewport.left-target.left+20;}}
     this.updateInteraction(state,{blocked:true,present});
-    let newTop;if(plan.topChanged){const template=document.createElement('template');template.innerHTML=card(state.top);newTop=template.content.firstElementChild;this.discard.append(newTop);}
+    let newTop;if(plan.topChanged&&!stagedTop){const template=document.createElement('template');template.innerHTML=card(state.top);newTop=template.content.firstElementChild;this.discard.append(newTop);}
     this.discard.classList.toggle('joker',state.top?.color==='wild');if(state.color)this.discard.style.setProperty('--chosen-color',`var(--${state.color})`);
     const ownTargets=new Map([...this.own].map(([id,slot])=>[id,this.geometry(slot.firstElementChild)]));
     const otherTargets=new Map([...this.rivals].map(([index,r])=>[index,new Map([...r.nodes].map(([id,slot])=>[id,this.geometry(slot.firstElementChild)]))]));
     const jobs=plan.deal?[]:this.layout(this.own,beforeOwn,this.capture(this.own),reduced);
     if(!plan.deal)for(const [index,rival]of this.rivals)jobs.push(...this.layout(rival.nodes,beforeOther.get(index)??new Map(),this.capture(rival.nodes),reduced));
     if(newTop){newTop.style.visibility='hidden';jobs.push(this.fly(plan.ownPlayed?ownSource:plan.opponentPlayed?opponentSource:deckSource,this.geometry(newTop),{c:state.top,reveal:!plan.ownPlayed,target:newTop,duration:PLAY_DURATION,reduced}));if(!plan.deal){cardSound('play',reduced?0:305);if(state.top.value==='bomb')bombSound(reduced?0:305);}}
-    const penaltyDelay=plan.ownPlayed||plan.opponentPlayed?FOLLOWUP_DELAY:0;
+    const penaltyDelay=stagedTop?0:plan.ownPlayed||plan.opponentPlayed?FOLLOWUP_DELAY:0;
     let dealStep=0;
     if(plan.deal){
       const groups=[plan.added.map(c=>({c,target:this.own.get(c.id)?.firstElementChild,to:ownTargets.get(c.id)})),...plan.opponents.map(change=>{const rival=this.rivals.get(change.index);return Array.from({length:rival?.visible??0},(_,i)=>({backOnly:true,target:rival.nodes.get('op-'+i)?.firstElementChild,to:otherTargets.get(change.index)?.get('op-'+i)}));})];
