@@ -31,7 +31,7 @@ test('Minecraft covers 64 distinct scenes with 43 number scenes and dedicated co
 });
 
 test('Minecraft illustrations are transparent layers rather than oval or rectangular photo windows',async()=>{
-  for(const sheet of ['a','b','c','d']){const data=await readFile(new URL('../public/assets/cards/minecraft-'+sheet+'.webp',import.meta.url));assert.equal(data.toString('ascii',12,16),'VP8X');assert.ok(data[20]&16,sheet+' must preserve alpha');}
+  for(const sheet of ['a','b','c','d']){const data=await readFile(new URL('../public/assets/cards/minecraft-art-'+sheet+'.webp',import.meta.url));assert.equal(data.toString('ascii',12,16),'VP8X');assert.ok(data[20]&16,sheet+' must preserve alpha');}
   for(const c of deck()){const front=face(c,false,'minecraft');assert.doesNotMatch(front,/<clipPath|<mask|<ellipse|linearGradient|radialGradient/);assert.match(front,/<image/);}
 });
 test('appearance preferences validate identifiers and tolerate disabled storage',()=>{
@@ -51,7 +51,7 @@ test('optional Minecraft backgrounds have separate mobile/desktop files within a
   let total=0;for(const name of ['wide','portrait']){const path=new URL('../public/assets/tables/minecraft-'+name+'.webp',import.meta.url),data=await readFile(path);assert.equal(data.toString('ascii',8,12),'WEBP');total+=data.length;}assert.ok(total<65000,total+' bytes');
 });
 test('each optional illustrated deck stays under 220 KB including its tiny chooser cover',async()=>{
-  for(const theme of DECKS.filter(d=>d.id!=='classic')){let bytes=0;for(const file of [...deckFiles(theme.id),`./assets/cards/${theme.id}-cover.webp`]){const path=new URL('../public/'+file.slice(2),import.meta.url),buffer=await readFile(path);assert.equal(buffer.toString('ascii',8,12),'WEBP');bytes+=(await stat(path)).size;}assert.ok(bytes<220000,`${theme.id}: ${bytes}`);}
+  for(const theme of DECKS.filter(d=>d.id!=='classic')){let bytes=0;for(const file of [...deckFiles(theme.id),`./assets/cards/${theme.id==='minecraft'?'minecraft-art':theme.id}-cover.webp`]){const path=new URL('../public/'+file.slice(2),import.meta.url),buffer=await readFile(path);assert.equal(buffer.toString('ascii',8,12),'WEBP');bytes+=(await stat(path)).size;}assert.ok(bytes<220000,`${theme.id}: ${bytes}`);}
 });
 
 test('Kuromi distributes 76 numeric cards across 40 scenes, at most twice each and never twice in one color',()=>{

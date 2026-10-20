@@ -2,7 +2,7 @@ export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:
 let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
-const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':theme==='minecraft'?'?v=3':''}`;
+const atlasFile=(theme,sheet)=>`./assets/cards/${theme==='minecraft'?'minecraft-art':theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
 export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(id==='minecraft'?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
@@ -93,7 +93,7 @@ export function themedFace(c,back,theme,{preview=false}={}){
 
 // Transparent character layers sit on the printed world; no image window or mask.
 function minecraftArtwork(index,{x=1,y=36,size=106,preview=false}={}){
-  if(preview)return `<image href="./assets/cards/minecraft-cover.webp?v=3" x="${x}" y="${y}" width="${size}" height="${size}"/>`;
+  if(preview)return `<image href="./assets/cards/minecraft-art-cover.webp" x="${x}" y="${y}" width="${size}" height="${size}"/>`;
   const local=index%16,column=local%4,row=Math.floor(local/4),sheet=['a','b','c','d'][Math.floor(index/16)];
   return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100"><image href="${atlasFile('minecraft',sheet)}" width="400" height="400"/></svg>`;
 }

@@ -61,10 +61,10 @@ for cell in (144, 128, 112):
             buf = BytesIO(); cover.save(buf,'WEBP',quality=67,method=6)
             encoded['cover'] = buf.getvalue()
         # Keep the same 220KB total budget, including any not-yet-regenerated sheets.
-        total = sum(map(len, encoded.values())) + sum((OUTPUT / f'minecraft-{sheet}.webp').stat().st_size for sheet in ['a','b','c','d','cover'] if sheet not in encoded)
+        total = sum(map(len, encoded.values())) + sum((OUTPUT / f'minecraft-art-{sheet}.webp').stat().st_size for sheet in ['a','b','c','d','cover'] if sheet not in encoded)
         if total < 220000:
             for sheet, data in encoded.items():
-                (OUTPUT / f'minecraft-{sheet}.webp').write_bytes(data)
+                (OUTPUT / f'minecraft-art-{sheet}.webp').write_bytes(data)
             print(json.dumps({'cell':cell,'quality':quality,'bytes':total,'sheets':list(originals),'files':{sheet:len(data) for sheet,data in encoded.items()}}))
             raise SystemExit(0)
 raise ValueError('Minecraft illustrations exceed the220KB budget')
