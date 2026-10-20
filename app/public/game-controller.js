@@ -130,7 +130,7 @@ async function drain(){
     $('login').hidden=true;$('match').hidden=false;$('leave').hidden=false;
     if(previous&&previous.round!==state.round)$('result-dialog').close();
     if(pendingPlay&&!state.playable.includes(pendingPlay.cardId))cancelPlay();
-    rules=state.rules??'classic';$('rules-label').hidden=rules!=='special';
+    setRules(state.rules??'classic');$('rules-label').hidden=rules!=='special';
     const events=feedback(previous,state);
     moving=true;$('match').dataset.motion='moving';renderControls();
     try{await appearance.ensureDeck(rules);if(version!==generation)return;await motion.update(previous,state,{present});}catch(error){console.error('Card transition failed',error);}
