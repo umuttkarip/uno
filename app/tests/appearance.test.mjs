@@ -27,3 +27,13 @@ test('appearance preferences validate identifiers and tolerate disabled storage'
 test('each optional illustrated deck stays under 220 KB including its tiny chooser cover',async()=>{
   for(const theme of DECKS.filter(d=>d.id!=='classic')){let bytes=0;for(const file of [...deckFiles(theme.id),`./assets/cards/${theme.id}-cover.webp`]){const path=new URL('../public/'+file.slice(2),import.meta.url),buffer=await readFile(path);assert.equal(buffer.toString('ascii',8,12),'WEBP');bytes+=(await stat(path)).size;}assert.ok(bytes<220000,`${theme.id}: ${bytes}`);}
 });
+
+test('Kuromi distributes 76 numeric cards across 40 scenes, at most twice each and never twice in one color',()=>{
+  const cards=deck().filter(c=>/^\d$/.test(c.value)),counts=new Map();
+  for(const c of cards){const index=sceneIndex(c,false,'kuromi');assert.ok(index<24||index>=32&&index<48);counts.set(index,(counts.get(index)??0)+1);}
+  assert.equal(counts.size,40);assert.ok([...counts.values()].every(n=>n<=2));
+  for(const color of ['red','yellow','green','blue']){const hand=cards.filter(c=>c.color===color);assert.equal(new Set(hand.map(c=>sceneIndex(c,false,'kuromi'))).size,hand.length);}
+  for(const value of ['0','1','2','3','4','5','6','7','8','9']){const sameNumber=cards.filter(c=>c.value===value);assert.equal(new Set(sameNumber.map(c=>sceneIndex(c,false,'kuromi'))).size,sameNumber.length);}
+  const green4=new Set(cards.filter(c=>c.color==='green'&&c.value==='4').map(c=>sceneIndex(c,false,'kuromi')));
+  assert.ok(cards.filter(c=>c.color==='green'&&c.value==='8').every(c=>!green4.has(sceneIndex(c,false,'kuromi'))));
+});

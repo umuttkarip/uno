@@ -49,9 +49,9 @@ def isolated_cell(tile):
     tile.putalpha(ImageChops.multiply(alpha, mask))
     return tile
 
-def pack(original):
+def pack(original, cell_size=CELL):
     image = Image.open(original).convert('RGBA')
-    sheet = Image.new('RGBA', (CELL * 4, CELL * 4))
+    sheet = Image.new('RGBA', (cell_size * 4, cell_size * 4))
     cells = []
     for index in range(16):
         x, y = index % 4, index // 4
@@ -67,10 +67,10 @@ def pack(original):
         bounds = tile.getchannel('A').getbbox()
         if bounds:
             tile = tile.crop(bounds)
-        tile.thumbnail((CELL - 12, CELL - 12), Image.Resampling.LANCZOS)
-        cell = Image.new('RGBA', (CELL, CELL))
-        cell.alpha_composite(tile, ((CELL - tile.width) // 2, (CELL - tile.height) // 2))
-        sheet.alpha_composite(cell, (x * CELL, y * CELL))
+        tile.thumbnail((cell_size - 12, cell_size - 12), Image.Resampling.LANCZOS)
+        cell = Image.new('RGBA', (cell_size, cell_size))
+        cell.alpha_composite(tile, ((cell_size - tile.width) // 2, (cell_size - tile.height) // 2))
+        sheet.alpha_composite(cell, (x * cell_size, y * cell_size))
         cells.append(cell)
     return sheet, cells
 
@@ -87,10 +87,10 @@ def main():
             if args.generated_dir is None:
                 raise FileNotFoundError(f'{source}: supply the original PNG or --generated-dir')
             shutil.copyfile(args.generated_dir / entry['file'], source)
-        atlas, cells = pack(source)
+        atlas, cells = pack(source, cell_size=112 if name == 'kuromi-c' else CELL)
         # Sixteen alpha levels preserve soft edges without storing imperceptible grain.
         atlas.putalpha(atlas.getchannel('A').point(lambda value: round(value / 17) * 17))
-        atlas.save(OUTPUT / (name + '.webp'), 'WEBP', quality=61, method=6)
+        atlas.save(OUTPUT / (name + '.webp'), 'WEBP', quality=44 if name == 'kuromi-c' else 61, method=6)
         sizes[name] = (OUTPUT / (name + '.webp')).stat().st_size
         if name.endswith('-b'):
             cover = cells[15].resize((112, 112), Image.Resampling.LANCZOS)

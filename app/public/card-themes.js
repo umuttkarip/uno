@@ -1,21 +1,28 @@
-export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:'seal',name:'Fok'},{id:'kuromi',name:'Kuromi'},{id:'adventure',name:'Adventure Time'}];
+export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:'seal',name:'Sude'},{id:'kuromi',name:'Kuromi'},{id:'adventure',name:'Adventure Time'}];
 let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
 const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
-export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:[atlasFile(id,'a'),atlasFile(id,'b')];
+export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])];
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
-export function sceneIndex(c,back=false){
+export function sceneIndex(c,back=false,theme='classic'){
   if(back)return 31;
   const color=Math.max(0,['red','yellow','green','blue'].indexOf(c.color));
   const copy=(Number.parseInt(c.id,10)||0)%2;
-  if(/^\d$/.test(c.value))return (Number(c.value)*2+color*5+copy)%24;
+  if(/^\d$/.test(c.value)){
+    if(theme==='kuromi'){
+      const ordinal=c.value==='0'?0:Number(c.value)*2-1+copy;
+      const scene=(color*19+ordinal)%40;
+      return scene<24?scene:scene+8;
+    }
+    return (Number(c.value)*2+color*5+copy)%24;
+  }
   return ({skip:24+(color+copy)%2,reverse:26+(color+copy)%2,draw2:28,wild:29,wild4:30})[c.value]??29;
 }
 function art(theme,index,{preview=false,x=0,y=42,size=108}={}){
   if(preview)return `<image href="./assets/cards/${theme}-cover.webp" x="${x}" y="${y}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet"/>`;
-  const local=index%16,column=local%4,row=Math.floor(local/4),sheet=index<16?'a':'b';
+  const local=index%16,column=local%4,row=Math.floor(local/4),sheet=index<16?'a':index<32?'b':'c';
   // The square viewport cuts only the atlas cell. It draws no panel or frame.
   return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="${atlasFile(theme,sheet)}" x="0" y="0" width="400" height="400"/></svg>`;
 }
@@ -65,7 +72,7 @@ function backPrint(theme,preview){
 }
 export function themedFace(c,back,theme,{preview=false}={}){
   const f=family[theme];if(!f)return '';
-  const color=colors[c.color]??colors.wild,wild=c.color==='wild',index=sceneIndex(c,back);
+  const color=colors[c.color]??colors.wild,wild=c.color==='wild',index=sceneIndex(c,back,theme);
   const prints={cats:catPrint,seal:sealPrint,kuromi:kuromiPrint,adventure:adventurePrint};
   const wideCats=new Set([0,1,7,12,15,18,19,20,21,23,26,27,30]);
   const placement=theme==='cats'?{x:index===24?-4:wideCats.has(index)?-7:2,y:index===24?24:wideCats.has(index)?34:30,size:index===24?121:114}:theme==='seal'?{x:1,y:40,size:108}:theme==='kuromi'?{x:8,y:43,size:105}:{x:-1,y:43,size:110};
