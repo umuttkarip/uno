@@ -22,7 +22,7 @@ const palette=[colors.red,colors.yellow,colors.green,colors.blue];
 function glyph(value,fill,ink='none',weight=.8){
   if(value==='wild')return `<g transform="translate(6 7) rotate(-12 12 12)" stroke="#fff9ed" stroke-width="1.1">${palette.map((color,i)=>`<path d="M${i%2*12} ${Math.floor(i/2)*12}h12v12H${i%2*12}Z" fill="${color}"/>`).join('')}</g>`;
   if(value==='skip')return `<g transform="translate(18 20)" fill="none" stroke="${ink}" stroke-width="5.2"><circle r="10"/><path d="m-7 7 14-14"/></g><g transform="translate(18 20)" fill="none" stroke="${fill}" stroke-width="3.4"><circle r="10"/><path d="m-7 7 14-14"/></g>`;
-  if(value==='reverse')return `<g transform="translate(7 7) rotate(-8 12 14)" fill="${fill}" stroke="${ink}" stroke-width="${weight}" stroke-linejoin="round"><path d="M0 10V3h14V0l11 8-11 8v-5H5v5H0Zm25 8v7H11v3L0 20l11-8v5h9v-5h5Z"/></g>`;
+  if(value==='reverse')return `<g transform="translate(7 5) rotate(-12 12 15)" fill="${fill}" stroke="${ink}" stroke-width="${weight}" stroke-linejoin="round"><path d="M0 5h15V1l9 7-9 7v-4H0Zm24 15H9v-4l-9 7 9 7v-4h15Z"/></g>`;
   const text=value==='wild4'?'+4':value==='draw2'?'+2':value;
   return `<text x="7" y="32" fill="${fill}" stroke="${ink}" stroke-width="${weight}" paint-order="stroke" stroke-linejoin="round" font-family="Arial,Helvetica,sans-serif" font-style="italic" font-size="${String(text).length>1?26:33}" font-weight="900" letter-spacing="-1.7">${text}</text>${['6','9'].includes(value)?`<path d="M9 35h17" stroke="${fill}" stroke-width="1.8"/>`:''}`;
 }
