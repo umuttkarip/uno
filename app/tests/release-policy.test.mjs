@@ -6,19 +6,21 @@ import {mountAppearance} from '../public/appearance.js';
 import {getDeckTheme,setDeckTheme} from '../public/card-themes.js';
 import {assetFiles} from '../scripts/web-assets.mjs';
 
-test('table and card designs require separate explicit approval before a normal release',()=>{
-  assert.equal(TABLE_DESIGNS_APPROVED,false);assert.equal(CARD_DESIGNS_APPROVED,false);assert.deepEqual(APPEARANCE_POLICY,{tables:false,cards:false});
+test('the owner-approved card and table designs are enabled in the normal release',()=>{
+  assert.equal(TABLE_DESIGNS_APPROVED,true);assert.equal(CARD_DESIGNS_APPROVED,true);assert.deepEqual(APPEARANCE_POLICY,{tables:true,cards:true});
 });
-test('an unapproved release ignores saved theme choices, hides the picker and loads no artwork',async t=>{
-  const oldDocument=Object.getOwnPropertyDescriptor(globalThis,'document'),toggle={hidden:false};
-  Object.defineProperty(globalThis,'document',{configurable:true,value:{getElementById:id=>{assert.equal(id,'appearance-toggle');return toggle;}}});
+test('the approved release exposes the picker and keeps classic green as the first-use default',async t=>{
+  const oldDocument=Object.getOwnPropertyDescriptor(globalThis,'document'),elements=new Map(),body={dataset:{},classList:{toggle(){}},style:{setProperty(){},removeProperty(){}}};
+  const getElementById=id=>{if(!elements.has(id))elements.set(id,{hidden:true,addEventListener(){}});return elements.get(id);};
+  Object.defineProperty(globalThis,'document',{configurable:true,value:{getElementById,body,addEventListener(){}}});
   t.after(()=>{oldDocument?Object.defineProperty(globalThis,'document',oldDocument):Reflect.deleteProperty(globalThis,'document');setDeckTheme('classic');});
   setDeckTheme('kuromi');const appearance=mountAppearance({onDeckChange:()=>assert.fail('unexpected change'),onError:()=>assert.fail('unexpected error')});
-  await appearance.ensureDeck();appearance.setBusy(true);assert.equal(toggle.hidden,true);assert.equal(getDeckTheme(),'classic');
+  await appearance.ensureDeck();appearance.setBusy(true);assert.equal(getElementById('appearance-toggle').hidden,false);assert.equal(body.dataset.table,'green');assert.equal(getDeckTheme(),'classic');
 });
-test('normal deployment excludes card atlases and covers while the design preview includes them',async()=>{
+test('approved deployment includes themed media while the optional asset filter remains available',async()=>{
   const root=fileURLToPath(new URL('../public/assets/',import.meta.url));
   const normal=(await assetFiles(root,{includeCards:false,includeTables:false})).map(f=>f.replaceAll('\\','/')),preview=(await assetFiles(root,{includeCards:true,includeTables:true})).map(f=>f.replaceAll('\\','/'));
+  const released=(await assetFiles(root,{includeCards:CARD_DESIGNS_APPROVED,includeTables:TABLE_DESIGNS_APPROVED})).map(f=>f.replaceAll('\\','/'));assert.deepEqual(released,preview);
   assert.equal(normal.some(f=>f.startsWith('cards/')),false);assert.equal(preview.filter(f=>f.startsWith('cards/')).length,32);
   for(const theme of ['cats','seal','kuromi','adventure','minecraft']){assert.ok(preview.includes('cards/'+theme+'-special.webp'));assert.equal(normal.includes('cards/'+theme+'-special.webp'),false);}
   assert.ok(preview.includes('cards/kuromi-c.webp'));assert.equal(normal.includes('cards/kuromi-c.webp'),false);
