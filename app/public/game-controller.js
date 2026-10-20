@@ -45,6 +45,15 @@ function prepareChat(){
 installAudioUnlock();
 
 function notice(text){if(!text)return;if(state)showMessage({player:state.me,text,private:true});else $('entry-error').textContent=text;}
+function fitChat(){
+  const panel=$('chat-panel'),viewport=window.visualViewport,height=viewport?.height??window.innerHeight;
+  panel.style.setProperty('--chat-visible-height',height+'px');
+  panel.style.setProperty('--chat-keyboard-offset',Math.max(0,window.innerHeight-height-(viewport?.offsetTop??0))+'px');
+  panel.dataset.compact=String(height<430);panel.dataset.tight=String(height<280);
+}
+window.visualViewport?.addEventListener('resize',()=>{if(!$('chat-panel').hidden)fitChat();});
+window.visualViewport?.addEventListener('scroll',()=>{if(!$('chat-panel').hidden)fitChat();});
+window.addEventListener('resize',()=>{if(!$('chat-panel').hidden)fitChat();});
 function setChat(open,instant=false,focusInput=false){
   const version=++chatGeneration;
   chatAnimation?.cancel();
@@ -52,6 +61,7 @@ function setChat(open,instant=false,focusInput=false){
   const panel=$('chat-panel');
   if(open){
     prepareChat();
+    fitChat();
     panel.hidden=false;
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)chatAnimation=panel.animate([{opacity:0,transform:'translateY(7px) scale(.98)'},{opacity:1,transform:'none'}],{duration:180,easing:'cubic-bezier(.22,.8,.25,1)'});
     if(focusInput)$('message').focus({preventScroll:true});

@@ -120,8 +120,8 @@ test('refresh restores a pending last +2, the counter and the same scores withou
 test('text and every expression stay separate from the turn clock and bot presentation',async t=>{
   const q=await setup(t),s=fixed(q.game,[red('3'),blue('9')],[red('draw2')],{turn:1}),deadline=s.turnDeadline;
   await q.game.message({text:'merhaba'});assert.equal(q.messages[0].text,'merhaba');
-  for(const emote of ['😂','😭','😏','😡','😮','❤️','👏','💀','seal','seal-tongue','seal-happy','seal-cry','seal-scream']){q.tick(700);await q.game.message({emote});}
-  assert.equal(q.messages.length,14);assert.equal(s.players[1].hand.length,1);assert.equal(s.turnDeadline,deadline);
+  for(const emote of ['😂','😭','😏','😡','😮','❤️','👏','💀','seal','seal-tongue','seal-happy','seal-cry','seal-scream','seal-kiss','seal-sulk','seal-smug']){q.tick(700);await q.game.message({emote});}
+  assert.equal(q.messages.length,17);assert.equal(s.players[1].hand.length,1);assert.equal(s.turnDeadline,deadline);
   assert.equal(s.messages,undefined);assert.equal(q.states.length,2);
 });
 

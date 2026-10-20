@@ -19,7 +19,8 @@ test('an unapproved release ignores saved theme choices, hides the picker and lo
 test('normal deployment excludes card atlases and covers while the design preview includes them',async()=>{
   const root=fileURLToPath(new URL('../public/assets/',import.meta.url));
   const normal=(await assetFiles(root,{includeCards:false})).map(f=>f.replaceAll('\\','/')),preview=(await assetFiles(root,{includeCards:true})).map(f=>f.replaceAll('\\','/'));
-  assert.equal(normal.some(f=>f.startsWith('cards/')),false);assert.equal(preview.filter(f=>f.startsWith('cards/')).length,13);
+  assert.equal(normal.some(f=>f.startsWith('cards/')),false);assert.equal(preview.filter(f=>f.startsWith('cards/')).length,18);
   assert.ok(preview.includes('cards/kuromi-c.webp'));assert.equal(normal.includes('cards/kuromi-c.webp'),false);
+  for(const sheet of ['a','b','c','d','cover']){assert.ok(preview.includes('cards/minecraft-'+sheet+'.webp'));assert.equal(normal.includes('cards/minecraft-'+sheet+'.webp'),false);}
   assert.ok(normal.includes('audio/card-slide-1.mp3'));assert.ok(normal.includes('expressions/seal.webp'));
 });
