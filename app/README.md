@@ -27,3 +27,5 @@ Masa ve kart tasarımları manuel onay bekler; canlı sitede varsayılan yeşil 
 5.4.3: Minecraft64sahnesi saydam karakter/nesne katmanlarıyla kartın kendi bloklu arazi baskısına birleşir. Resim ovali/daire/kare penceresi veya görüntüyü kesen maske yoktur; merkezde tekrar sayı basılmaz. Büyük özel kart sahneleri ve sabitCreeper armalı arka vardır. Dört512×512 WebP atlası (hücre128) ve112pxkapak toplam217356B; sadece seçildiğinde indirilir. Overworld masaüstü/telefon arka planları korunur. Ana oyun için ayrı manuel onaylar kapalıdır, görünüm yalnız /uno/test/ üzerinde denenir.
 
 5.5.0: Adventure Time, sevilen mevcut32çizim ve baskıyı koruyarak64sahneye çıktı (43sayı,20özel,1arka). Her çizim destede en çok iki kez, aynı renkteki çift özel kartlar da farklıdır. Kapak dahil219216B; yalnız /uno/test/ önizlemesinde.
+
+5.5.1: Yeşil ilk varsayılan, kayıtlı kart/masa tercihleri bağımsız korunur. Minecraft seçimi eş masaya geçer; sonra kişisel arka plan serbesttir. Her renkte aksolotl ve Marceline vardır; Minecraft3yeniaksolotl ve yeniarka ile67aktif sahne/231284B kullanır. Yalnız test.

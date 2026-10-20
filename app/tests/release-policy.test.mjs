@@ -19,9 +19,10 @@ test('an unapproved release ignores saved theme choices, hides the picker and lo
 test('normal deployment excludes card atlases and covers while the design preview includes them',async()=>{
   const root=fileURLToPath(new URL('../public/assets/',import.meta.url));
   const normal=(await assetFiles(root,{includeCards:false,includeTables:false})).map(f=>f.replaceAll('\\','/')),preview=(await assetFiles(root,{includeCards:true,includeTables:true})).map(f=>f.replaceAll('\\','/'));
-  assert.equal(normal.some(f=>f.startsWith('cards/')),false);assert.equal(preview.filter(f=>f.startsWith('cards/')).length,25);
+  assert.equal(normal.some(f=>f.startsWith('cards/')),false);assert.equal(preview.filter(f=>f.startsWith('cards/')).length,27);
   assert.ok(preview.includes('cards/kuromi-c.webp'));assert.equal(normal.includes('cards/kuromi-c.webp'),false);
   for(const sheet of ['c','d']){assert.ok(preview.includes('cards/adventure-'+sheet+'.webp'));assert.equal(normal.includes('cards/adventure-'+sheet+'.webp'),false);}
+  for(const file of ['minecraft-art-e.webp','minecraft-back-cover.webp']){assert.ok(preview.includes('cards/'+file));assert.equal(normal.includes('cards/'+file),false);}
   for(const sheet of ['a','b','c','d','cover']){assert.ok(preview.includes('cards/minecraft-'+sheet+'.webp'));assert.equal(normal.includes('cards/minecraft-'+sheet+'.webp'),false);assert.ok(preview.includes('cards/minecraft-art-'+sheet+'.webp'));assert.equal(normal.includes('cards/minecraft-art-'+sheet+'.webp'),false);}
   assert.ok(normal.includes('audio/card-slide-1.mp3'));assert.ok(normal.includes('expressions/seal.webp'));
   assert.equal(normal.some(f=>f.startsWith('tables/')),false);assert.equal(preview.filter(f=>f.startsWith('tables/')).length,2);

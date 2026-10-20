@@ -11,8 +11,13 @@ export const TABLES=[
   {id:'rose',name:'Gülkurusu',felt:'#583a42',glow:'#a26c7350',panel:'#5c4048',deep:'#412c34'},
   {id:'minecraft',name:'Minecraft',felt:'#152b20',glow:'#223b2900',panel:'#1b3025',deep:'#10251b'}
 ];
-export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem(storageKey('uno-look-v1')));return {table:data?.version!==2&&data?.deck==='minecraft'?'minecraft':TABLES.some(t=>t.id===data?.table)?data.table:'green',deck:DECKS.some(d=>d.id===data?.deck)?data.deck:'classic'};}catch{return {table:'green',deck:'classic'};}}
+export const DEFAULT_APPEARANCE=Object.freeze({table:TABLES[0].id,deck:DECKS[0].id});
+export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem(storageKey('uno-look-v1')));return {table:TABLES.some(t=>t.id===data?.table)?data.table:DEFAULT_APPEARANCE.table,deck:DECKS.some(d=>d.id===data?.deck)?data.deck:DEFAULT_APPEARANCE.deck};}catch{return {...DEFAULT_APPEARANCE};}}
 export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem(storageKey('uno-look-v1'),JSON.stringify({...look,version:2}));}catch{}}
+export function chooseDeckAppearance(look,id,{matchTable=true}={}){
+  if(!DECKS.some(d=>d.id===id))return {...look};
+  return {table:matchTable&&id==='minecraft'&&id!==look.deck?'minecraft':look.table,deck:id};
+}
 const loaded=new Map();
 function loadDeck(id){
   if(loaded.has(id))return loaded.get(id);
@@ -34,7 +39,7 @@ export function mountAppearance({onDeckChange,onError}){
   panel.addEventListener('click',async event=>{
     const swatch=event.target.closest('button[data-table]'),deck=event.target.closest('button[data-deck]');
     if(swatch){look.table=swatch.dataset.table;table();saveAppearance(look);refresh();}
-    if(deck&&!loading&&!busy){loading=true;refresh();try{await loadDeck(deck.dataset.deck);look.deck=deck.dataset.deck;if(look.deck==='minecraft'&&APPEARANCE_POLICY.tables){look.table='minecraft';table();}setDeckTheme(look.deck);saveAppearance(look);onDeckChange();}catch(error){onError(error.message);}finally{loading=false;refresh();}}
+    if(deck&&!loading&&!busy&&deck.dataset.deck!==look.deck){loading=true;refresh();try{await loadDeck(deck.dataset.deck);look=chooseDeckAppearance(look,deck.dataset.deck,{matchTable:APPEARANCE_POLICY.tables});table();setDeckTheme(look.deck);saveAppearance(look);onDeckChange();}catch(error){onError(error.message);}finally{loading=false;refresh();}}
   });
   document.addEventListener('pointerdown',event=>{if(!panel.hidden&&!panel.contains(event.target)&&!$('appearance-toggle').contains(event.target))open(false);});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')open(false);});

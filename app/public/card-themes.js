@@ -3,14 +3,18 @@ let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
 const atlasFile=(theme,sheet)=>`./assets/cards/${theme==='minecraft'?'minecraft-art':theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
-export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(['minecraft','adventure'].includes(id)?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
+export const deckCoverFile=id=>`./assets/cards/${id==='minecraft'?'minecraft-back-cover':id+'-cover'}.webp`;
+export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(id==='minecraft'?['a','b','c','d','e'].map(sheet=>atlasFile(id,sheet)):id==='adventure'?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
+export const FEATURED_SCENES={minecraft:{axolotl:[6,64,65,66]},adventure:{marceline:[4,19,46,57,59]}};
+// Spread the four axolotl scenes through the pool so every color includes one.
+const minecraftNumbers=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,64,22,23,24,25,26,27,28,29,30,31,65,32,33,34,35,36,37,38,39,61,62,66,63];
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
 export function sceneIndex(c,back=false,theme='classic'){
   if(theme==='minecraft'){
-    if(back)return 60;
+    if(back)return 67;
     const color=Math.max(0,['red','yellow','green','blue'].indexOf(c.color));
-    if(/^\d$/.test(c.value)){const copy=(Number.parseInt(c.id,10)||0)%2,ordinal=c.value==='0'?0:Number(c.value)*2-1+copy,index=(color*19+ordinal)%43;return index<40?index:index+21;}
+    if(/^\d$/.test(c.value)){const copy=(Number.parseInt(c.id,10)||0)%2,ordinal=c.value==='0'?0:Number(c.value)*2-1+copy;return minecraftNumbers[(color*19+ordinal)%minecraftNumbers.length];}
     const variant=(Number.parseInt(c.id,10)||0)%4;
     return ({skip:40+color,reverse:44+color,draw2:48+color,wild:52+variant,wild4:56+variant})[c.value]??52;
   }
@@ -103,9 +107,9 @@ export function themedFace(c,back,theme,{preview=false}={}){
 
 // Transparent character layers sit on the printed world; no image window or mask.
 function minecraftArtwork(index,{x=1,y=36,size=106,preview=false}={}){
-  if(preview)return `<image href="./assets/cards/minecraft-art-cover.webp" x="${x}" y="${y}" width="${size}" height="${size}"/>`;
-  const local=index%16,column=local%4,row=Math.floor(local/4),sheet=['a','b','c','d'][Math.floor(index/16)];
-  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100"><image href="${atlasFile('minecraft',sheet)}" width="400" height="400"/></svg>`;
+  if(preview)return `<image href="${deckCoverFile('minecraft')}" x="${x}" y="${y}" width="${size}" height="${size}"/>`;
+  const grid=index>=64?2:4,local=index>=64?index-64:index%16,column=local%grid,row=Math.floor(local/grid),sheet=index>=64?'e':['a','b','c','d'][Math.floor(index/16)];
+  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100"><image href="${atlasFile('minecraft',sheet)}" width="${grid*100}" height="${grid*100}"/></svg>`;
 }
 function minecraftPrint(color,wild){
   const paper=wild?'#e9e2d0':'#fff5da',earth=wild?'#30273f':color===colors.blue?'#9abfc8':color===colors.red?'#bb7965':color===colors.yellow?'#cfaa61':'#739463';
@@ -115,7 +119,7 @@ function minecraftPrint(color,wild){
 function minecraftFace(c,back,preview){
   const color=colors[c.color]??'#24202d',paper='#fff7e3',ink='#253127',wild=c.color==='wild';let print;
   if(back){
-    print=minecraftPrint(colors.green,false)+minecraftArtwork(60,{x:3,y:24,size:98,preview})+'<text x="48" y="139" text-anchor="middle" fill="#fff7e3" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="900" font-style="italic" letter-spacing="-.8">UNO</text>';
+    print='<rect width="100" height="150" fill="#122e37"/><path d="M-4 81h13v-7h14v-7h14v-7h14v-7h14v-7h14v-7h25v67H91v7H77v7H63v7H49v7H35v7H-4Z" fill="#f5edcf"/><path d="M8 30h7v7H8m77 79h7v7h-7M19 25h4v4h-4m58 100h4v4h-4" fill="#8ab78d"/>'+minecraftArtwork(67,{x:0,y:31,size:100,preview})+'<text x="49" y="25" text-anchor="middle" fill="#fff7e3" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="900" font-style="italic" letter-spacing="-.9">UNO</text>'+palette.map((fill,i)=>`<path d="M${32+i*10} 138h7v4h-7Z" fill="${fill}"/>`).join('');
   }else{
     const index=sceneIndex(c,false,'minecraft'),special=['skip','reverse','draw2','wild','wild4'].includes(c.value);
     print=minecraftPrint(color,wild)+minecraftArtwork(index,{x:special?-4:0,y:special?27:35,size:special?112:106});
