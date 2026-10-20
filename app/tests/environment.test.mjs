@@ -4,9 +4,9 @@ import {build} from 'esbuild';
 import {DESIGN_PREVIEW,storageKey,TABLE_PEER_PREFIX} from '../src/environment.js';
 import {recordResult,readStats} from '../src/scores.js';
 
-test('normal games retain their existing sessions, history and peer addresses',()=>{
-  assert.equal(DESIGN_PREVIEW,false);assert.equal(TABLE_PEER_PREFIX,'umut-uno-v7-');
-  for(const key of ['uno-solo-v1','uno-v7:masa','uno-look-v1','uno-history-v1'])assert.equal(storageKey(key),key);
+test('normal release keeps history and preferences while fast games use v9 peer addresses',()=>{
+  assert.equal(DESIGN_PREVIEW,false);assert.equal(TABLE_PEER_PREFIX,'umut-uno-v9-');
+  for(const key of ['uno-solo-v1','uno-v9:masa','uno-look-v1','uno-history-v1'])assert.equal(storageKey(key),key);
 });
 test('the compiled design test cannot share saved games, history, preferences or rooms with production',async()=>{
   const built=await build({stdin:{contents:"export * from './src/environment.js';export * from './src/scores.js';",resolveDir:process.cwd()},bundle:true,format:'esm',write:false,define:{__UNO_DESIGN_PREVIEW__:'true'}});
