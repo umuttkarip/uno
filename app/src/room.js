@@ -3,7 +3,7 @@ import {act, newPlayer, newRoom, startRound, validName, view,penalizeUno} from '
 export const IDLE_LIMIT = 20 * 60 * 1000;
 export const TURN_DURATION = 30 * 1000;
 export const UNO_DURATION = 2500;
-export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry'];
+export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry', 'seal-scream'];
 
 export class RoomAuthority {
   constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online'} = {}) {

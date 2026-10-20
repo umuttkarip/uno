@@ -4,7 +4,7 @@ import {back} from './cards.js';
 import {MultiTableMotion,seating} from './table-motion-multi.js';
 import {LocalGame} from '../src/local-game.js';
 import {controls,chosenColor,feedback} from './table-state.js';
-import {unlockAudio,prepareAudio} from './card-audio.js';
+import {unlockAudio,prepareAudio,installAudioUnlock} from './card-audio.js';
 import {EXPRESSIONS,expression,expressionImage,preloadExpressions} from './expressions.js';
 import {mountAppearance} from './appearance.js';
 import {readStats,rememberPlayer,recordResult} from '../src/scores.js';
@@ -42,7 +42,7 @@ function prepareChat(){
   $('emotes').innerHTML=EXPRESSIONS.filter(item=>!item.sticker).map(choice).join('');
   preloadExpressions();
 }
-document.addEventListener('pointerdown',unlockAudio,{once:true});
+installAudioUnlock();
 
 function notice(text){if(!text)return;if(state)showMessage({player:state.me,text,private:true});else $('entry-error').textContent=text;}
 function setChat(open,instant=false,focusInput=false){

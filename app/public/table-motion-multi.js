@@ -13,6 +13,7 @@ export class MultiTableMotion extends TableMotion {
   reset(){super.reset();for(const rival of this.rivals.values()){rival.nodes.clear();rival.container.replaceChildren();}this.rivals.clear();}
   restyle(state){super.restyle(state);for(const rival of this.rivals.values())for(const slot of rival.nodes.values())slot.firstElementChild.innerHTML=face({color:'wild'},true);}
   async update(previous,state,{present=true}={}){
+    this.compact=matchMedia('(max-width:700px), (pointer:coarse)').matches;
     const generation=this.generation,plan=planTransition(previous,state),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const placements=seating(state),narrow=matchMedia('(max-width:700px)').matches;
     for(const {index,seat}of placements){let rival=this.rivals.get(index);if(!rival){rival={nodes:new Map()};this.rivals.set(index,rival);}rival.container=this.seats[seat].hand;rival.seat=seat;}
@@ -39,8 +40,14 @@ export class MultiTableMotion extends TableMotion {
     if(!plan.deal)for(const [index,rival]of this.rivals)jobs.push(...this.layout(rival.nodes,beforeOther.get(index)??new Map(),this.capture(rival.nodes),reduced));
     if(newTop){newTop.style.visibility='hidden';jobs.push(this.fly(plan.ownPlayed?ownSource:plan.opponentPlayed?opponentSource:deckSource,this.geometry(newTop),{c:state.top,reveal:!plan.ownPlayed,target:newTop,duration:PLAY_DURATION,reduced}));if(!plan.deal)cardSound('play',reduced?0:305);}
     const penaltyDelay=plan.ownPlayed||plan.opponentPlayed?FOLLOWUP_DELAY:0;
-    for(let i=0;i<plan.added.length;i++){const c=plan.added[i],node=this.own.get(c.id)?.firstElementChild;if(!node)continue;node.style.visibility='hidden';const delay=plan.deal?100+i*48:penaltyDelay+i*58;jobs.push(this.fly(deckSource,ownTargets.get(c.id),{c,reveal:true,target:node,delay,duration:430,reduced}));if(!plan.deal)cardSound('draw',reduced?0:delay,plan.added.length>1?.7:1);}
-    for(const change of plan.opponents){const rival=this.rivals.get(change.index);if(!rival)continue;for(let i=0;i<change.added;i++){const index=Math.min(rival.limit-1,Math.max(0,change.oldCount-(change.played?1:0)+i)),node=rival.nodes.get('op-'+index)?.firstElementChild;const delay=plan.deal?75+i*48:penaltyDelay+i*58;if(node){const target=index>=Math.min(change.oldCount,rival.limit)?node:null;if(target)target.style.visibility='hidden';jobs.push(this.fly(deckSource,otherTargets.get(change.index)?.get('op-'+index),{backOnly:true,target,delay,duration:430,reduced}));}if(!plan.deal)cardSound('draw',reduced?0:delay,.65);}}
+    let dealStep=0;
+    if(plan.deal){
+      const groups=[plan.added.map(c=>({c,target:this.own.get(c.id)?.firstElementChild,to:ownTargets.get(c.id)})),...plan.opponents.map(change=>{const rival=this.rivals.get(change.index);return Array.from({length:rival?.visible??0},(_,i)=>({backOnly:true,target:rival.nodes.get('op-'+i)?.firstElementChild,to:otherTargets.get(change.index)?.get('op-'+i)}));})];
+      // Deal once to each visible slot; never fly seven copies into the same capped slot.
+      for(let i=0;i<Math.max(...groups.map(g=>g.length));i++)for(const group of groups){const item=group[i];if(!item?.target)continue;item.target.style.visibility='hidden';jobs.push(this.fly(deckSource,item.to,{...item,reveal:!item.backOnly,delay:75+dealStep++*(this.compact?52:30),duration:this.compact?240:330,reduced}));}
+    }
+    for(let i=0;!plan.deal&&i<plan.added.length;i++){const c=plan.added[i],node=this.own.get(c.id)?.firstElementChild;if(!node)continue;node.style.visibility='hidden';const delay=penaltyDelay+i*58;jobs.push(this.fly(deckSource,ownTargets.get(c.id),{c,reveal:true,target:node,delay,duration:430,reduced}));cardSound('draw',reduced?0:delay,plan.added.length>1?.7:1);}
+    for(const change of plan.opponents){if(plan.deal)continue;const rival=this.rivals.get(change.index);if(!rival)continue;for(let i=0;i<change.added;i++){const index=Math.min(rival.limit-1,Math.max(0,change.oldCount-(change.played?1:0)+i)),node=rival.nodes.get('op-'+index)?.firstElementChild;const delay=penaltyDelay+i*58;if(node){const target=index>=Math.min(change.oldCount,rival.limit)?node:null;if(target)target.style.visibility='hidden';jobs.push(this.fly(deckSource,otherTargets.get(change.index)?.get('op-'+index),{backOnly:true,target,delay,duration:430,reduced}));}cardSound('draw',reduced?0:delay,.65);}}
     if(plan.deal){cardSound('draw',0,.45);cardSound('draw',150,.4);cardSound('draw',300,.4);}
     await Promise.all(jobs);if(this.generation!==generation)return;
     if(newTop)for(const node of [...this.discard.children])if(node!==newTop)node.remove();

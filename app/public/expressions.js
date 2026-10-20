@@ -11,7 +11,8 @@ export const EXPRESSIONS = [
   {code:'seal',name:'Fok',file:'seal.webp',sticker:true},
   {code:'seal-tongue',name:'Dil çıkaran fok',file:'seal-tongue.webp',sticker:true},
   {code:'seal-happy',name:'Mutlu fok',file:'seal-happy.webp',sticker:true},
-  {code:'seal-cry',name:'Ağlayan fok',file:'seal-cry.webp',sticker:true}
+  {code:'seal-cry',name:'Ağlayan fok',file:'seal-cry.webp',sticker:true},
+  {code:'seal-scream',name:'Çığlık',file:'seal-scream.webp',sticker:true}
 ];
 export function expression(code) {return EXPRESSIONS.find(item=>item.code===code);}
 export function expressionImage(code) {

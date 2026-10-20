@@ -4,11 +4,11 @@ import {readFile} from 'node:fs/promises';
 import {EXPRESSIONS} from '../public/expressions.js';
 import {RoomAuthority,EMOTES} from '../src/room.js';
 
-test('all four seal stickers pass the room protocol and match the picker catalog',()=>{
+test('all approved seal stickers pass the room protocol and match the picker catalog',()=>{
   let time=10000;
   const room=new RoomAuthority('Masa','Umut',crypto.randomUUID(),{now:()=>time});
   const stickers=EXPRESSIONS.filter(item=>item.sticker);
-  assert.deepEqual(stickers.map(item=>item.code),['seal','seal-tongue','seal-happy','seal-cry']);
+  assert.deepEqual(stickers.map(item=>item.code),['seal','seal-tongue','seal-happy','seal-cry','seal-scream']);
   assert.deepEqual(new Set(EXPRESSIONS.map(item=>item.code)),new Set(EMOTES));
   for(const item of stickers){const message=room.message(0,{emote:item.code});assert.equal(message.text,item.code);assert.equal(message.emote,true);time+=700;}
 });

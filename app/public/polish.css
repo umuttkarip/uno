@@ -40,7 +40,7 @@
 .player-name.closing-turn:after{background:#decf9e}
 .discard-pile>.card{z-index:1}
 .discard-pile>.card:last-child{z-index:2}
-.card-flight{position:fixed;left:0;top:0;z-index:50;pointer-events:none;perspective:800px;will-change:transform,opacity;border-radius:9px;filter:drop-shadow(1px 7px 6px #061e1660)}
+.card-flight{position:fixed;left:0;top:0;z-index:50;pointer-events:none;perspective:800px;will-change:transform,opacity;border-radius:9px;box-shadow:1px 7px 12px #061e1640}
 .flight-flip{position:relative;width:100%;height:100%;transform-style:preserve-3d}
 .flight-front,.flight-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .flight-front svg,.flight-back svg{display:block;width:100%;height:100%}

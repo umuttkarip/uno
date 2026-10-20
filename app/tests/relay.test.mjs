@@ -101,6 +101,8 @@ test('HTTPS messages arrive once by cursor and expire instead of becoming chat h
   const x=await setup(),a=await x.enter('A'),b=await x.enter('B');const sent=await x.call('message',{token:a.token,body:{key:a.key,id:crypto.randomUUID(),after:a.cursor,message:{text:'merhaba'}}});assert.equal(sent.messages[0].text,'merhaba');
   const received=await x.call('state',{token:b.token,key:b.key,after:b.cursor});assert.equal(received.messages[0].player,0);
   assert.equal((await x.call('state',{token:b.token,key:b.key,after:received.cursor})).unchanged,true);
+  x.advance(700);const sticker=await x.call('message',{token:a.token,body:{key:a.key,id:crypto.randomUUID(),after:received.cursor,message:{emote:'seal-scream'}}});assert.equal(sticker.status,200);
+  const shown=await x.call('state',{token:b.token,key:b.key,after:received.cursor});assert.equal(shown.messages.at(-1).text,'seal-scream');assert.equal(shown.messages.at(-1).emote,true);
   x.advance(5100);assert.deepEqual((await x.call('state',{token:b.token,key:b.key})).messages,[]);
 });
 

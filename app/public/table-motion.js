@@ -108,12 +108,19 @@ export class TableMotion {
     return jobs;
   }
 
-  fly(from,to,{c,backOnly=false,reveal=false,target,delay=0,duration=420,reduced=false}={}) {
+  fly(from,to,{c,backOnly=false,reveal=false,target,delay=0,duration=420,reduced=false,flat=this.compact}={}) {
     if(!usable(from?.box)||!usable(to?.box)){if(target)target.style.visibility='';return Promise.resolve();}
     if(reduced){
       if(target){target.style.visibility='';const fade=target.animate([{opacity:.3},{opacity:1}],{duration:130});return fade.finished.catch(()=>{});}
       return Promise.resolve();
     }
+    // Delayed flights should not allocate GPU layers or parse SVG until they move.
+    if(delay>0)return new Promise(resolve=>{
+      const pending={cancel:()=>{clearTimeout(timer);this.flights.delete(pending);resolve();}};
+      const timer=setTimeout(()=>{this.flights.delete(pending);resolve(this.fly(from,to,{c,backOnly,reveal,target,duration,reduced,flat}));},delay);
+      this.flights.add(pending);
+    });
+    if(flat)reveal=false;
     const ghost=document.createElement('div');ghost.className='card-flight';
     const w=to.width,h=to.height;
     ghost.style.width=w+'px';ghost.style.height=h+'px';
@@ -139,6 +146,7 @@ export class TableMotion {
   }
 
   async update(previous,state,{present=true}={}) {
+    this.compact=matchMedia('(max-width:700px), (pointer:coarse)').matches;
     const generation=this.generation;
     const plan=planTransition(previous,state);
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
