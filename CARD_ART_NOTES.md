@@ -4,6 +4,10 @@ Klasik deste korunur. Kediler, Fok, Kuromi ve Adventure Time temalarının her b
 
 Kedi kadrosu gri tekir, sarman, smokin ve üç renkli kedilerden oluşur; hareketleri ve gövdeleri kedi anatomisini koruyan 2B hikâye kitabı çizimleridir. Fok, kullanıcının özgün üçgen gövdeli, küçük kollu ve karalama gözlü çıkartmasına dayanır. Kuromi siyah/pembe/leylak; Adventure Time Ooo karakterleriyle tutarlı 2B çizim dilindedir. Her özel kart sahnesi kendi eylemine göre tasarlanmıştır. Bunlar bu proje için üretilen hayran çizimleridir; resmî lisanslı kart taramaları kullanılmamıştır.
 
+## Onay durumu
+
+Masa ve kart tasarımları ayrı ayrı manuel kullanıcı onayı bekliyor. Canlı sürümde kapalıdır; public/release-policy.js iki onay değerini false tutar. `npm run preview:design` ile http://localhost:4176/uno/ üzerinde denenir. Normal GitHub Pages derlemesi kart atlaslarını içermez.
+
 ## Dosyalar ve üretim
 
 Çizimler yerleşik image_gen aracıyla, iki adet 4×4 saydam PNG atlası olarak üretildi. Tam komutlar [CARD_ART_PROMPTS.md](CARD_ART_PROMPTS.md) dosyasındadır. Projedeki yüksek çözünürlüklü kaynaklar app/.local/card-art-source/{cats,seal,kuromi,adventure}-{a,b}.png; üretim manifesti aynı klasörde prompts.json. Aracın varsayılan generated_images çıktıları da korunmuştur. scripts/prepare-card-art.py, Pillow ile hücre ayırma, komşu hücre artıklarını dışlama, boşluk düzenleme, küçültme ve WebP sıkıştırmasını tekrarlar; yaratıcı çizimleri yeniden üretmez. Kaynak PNG dosyaları yayımlanmaz.
