@@ -42,9 +42,10 @@ test('duplicate socket commands and message copies apply once, preserving names 
  host.hostMessage(command,{nodeId:c.nodeId});host.hostMessage(command,{nodeId:c.nodeId});await flush();assert.equal(host.authority.state.players[1].hand.length,before+1);
 });
 test('host refresh restores hands, score and tokens; guests rejoin the existing seat',async t=>{
- const {clients:[host,guest],transport,room}=await table(t,2,{direct:false});await Promise.all([host.action({type:'ready',round:0}),guest.action({type:'ready',round:0})]);await flush();host.authority.state.players[1].wins=3;host.publish();await flush();const cards=guest.lastSnapshot.state.players[1].hand.map(c=>c.id),token=guest.token;
+ const {clients:[host,guest],transport,room}=await table(t,2,{direct:false});await Promise.all([host.action({type:'ready',round:0}),guest.action({type:'ready',round:0})]);await flush();host.authority.state.players[1].wins=3;host.publish();await flush();const cards=guest.lastSnapshot.state.players[1].hand.map(c=>c.id),token=guest.token,oldPacket=structuredClone(guest.lastSnapshot);
  host.shutdown();const restored=new TableConnection({onState(){}},{...transport,storage:host.storage});t.after(()=>restored.shutdown());await restored.enter('A',room);guest.joinHost();await flush();
  assert.equal(restored.authority.state.players.length,2);assert.equal(guest.token,token);assert.deepEqual(guest.lastSnapshot.state.players[1].hand.map(c=>c.id),cards);assert.equal(guest.lastSnapshot.state.players[1].wins,3);
+ guest.receive({...oldPacket,type:'state'});assert.equal(guest.hostEpoch,restored.epoch);assert.equal(guest.lastSnapshot.epoch,restored.epoch);
 });
 test('an existing socket table accepts a guest even if its signaling connection is unavailable',async t=>{
  const {host,room,transport}=await table(t,1,{direct:false});class OfflinePeer extends EventEmitter{destroy(){this.destroyed=true;}}

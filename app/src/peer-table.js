@@ -9,7 +9,7 @@ const erase=(key,storage)=>{try{storage.removeItem(key);}catch{}};
 const ICE={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
 export const tableSessionKey=room=>storageKey('uno-v9:'+roomKey(room));
 export class TableConnection {
-  constructor(callbacks,{Peer:PeerType=Peer,Bus=SocketBus,now=Date.now,commandTimeout=2500,storage=globalThis.sessionStorage}={}){Object.assign(this,callbacks,{PeerType,Bus,now,commandTimeout,storage});this.closed=false;this.links=new Map();this.pending=new Map();this.receipts=new Map();this.seenMessages=new Set();this.sequence=0;this.lastSequence=-1;this.reconnects=0;this.version=0;this.nodeId=crypto.randomUUID();this.epoch=crypto.randomUUID();}
+  constructor(callbacks,{Peer:PeerType=Peer,Bus=SocketBus,now=Date.now,commandTimeout=2500,storage=globalThis.sessionStorage}={}){Object.assign(this,callbacks,{PeerType,Bus,now,commandTimeout,storage});this.closed=false;this.links=new Map();this.pending=new Map();this.receipts=new Map();this.seenMessages=new Set();this.retiredEpochs=new Set();this.sequence=0;this.lastSequence=-1;this.reconnects=0;this.version=0;this.nodeId=crypto.randomUUID();this.epoch=crypto.randomUUID();}
   async enter(name,room,{rules='classic'}={}){
     this.name=validName(name);this.room=validName(room,'room');this.rules=rules;this.storageKey=tableSessionKey(room);
     const previous=read(this.storageKey,this.storage),identity=previous?.name===this.name?previous:null,savedAt=identity?.saved?.lastActive??identity?.at;this.previous=identity&&this.now()-savedAt<IDLE_LIMIT?identity:null;this.token=identity?.token??crypto.randomUUID();if(!/^[\w-]{20,80}$/.test(this.token))this.token=crypto.randomUUID();
@@ -93,7 +93,8 @@ export class TableConnection {
   receive(data){
     if(this.closed||!this.valid(data))return;this.lastHostSeen=this.now();
     if(data.type==='state'){
-      if(data.ack)this.settle(data.ack);if(data.epoch===this.hostEpoch&&data.sequence<=this.lastSequence)return;
+      if(data.ack)this.settle(data.ack);if(this.retiredEpochs.has(data.epoch)||data.epoch===this.hostEpoch&&data.sequence<=this.lastSequence)return;
+      if(this.hostEpoch&&data.epoch!==this.hostEpoch)this.retiredEpochs.add(this.hostEpoch);
       this.hostEpoch=data.epoch;this.lastSequence=data.sequence;this.joined=true;this.version=data.version;this.lastSnapshot=data;this.presence(data.state.players.every(p=>p.online));
       save(this.storageKey,{name:this.name,token:this.token,host:false,at:this.now()},this.storage);this.onState?.(data);this.finishEntry();
     }else if(data.type==='message')this.deliverMessage(data.message);
