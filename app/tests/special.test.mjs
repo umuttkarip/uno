@@ -16,10 +16,10 @@ const ids=s=>[...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)].map(c=>c.id).
 const play=(s,i,value,extra={})=>{const c=s.players[i].hand.find(c=>c.value===value);assert.ok(c,value);act(s,i,{type:'play',cardId:c.id,color:'blue',uno:true,...extra});return c;};
 const unchanged=(s,fn)=>{const before=structuredClone(s);assert.throws(fn);assert.deepEqual(s,before);};
 
-test('classic remains 108 cards; the optional special deck has 130 unique cards and seven extra types',()=>{
-  assert.equal(deck().length,108);const cards=deck('special');assert.equal(cards.length,130);assert.equal(new Set(cards.map(c=>c.id)).size,130);
-  assert.equal(cards.filter(c=>SPECIAL_VALUES.includes(c.value)).length,22);
-  for(const n of [2,3,4,5,6]){const s=game(Array.from({length:n},()=>[]));startRound(s);assert.ok(s.players.every(p=>p.hand.length===7));assert.match(s.pile[0].value,/^\d$/);assert.equal(ids(s).length,130);}
+test('classic remains 108 cards; the optional special deck has 129 unique cards and seven extra types',()=>{
+  assert.equal(deck().length,108);const cards=deck('special');assert.equal(cards.length,129);assert.equal(new Set(cards.map(c=>c.id)).size,129);
+  assert.equal(cards.filter(c=>SPECIAL_VALUES.includes(c.value)).length,21);assert.equal(cards.filter(c=>c.value==='swap').length,1);
+  for(const n of [2,3,4,5,6]){const s=game(Array.from({length:n},()=>[]));startRound(s);assert.ok(s.players.every(p=>p.hand.length===7));assert.match(s.pile[0].value,/^\d$/);assert.equal(ids(s).length,129);}
 });
 
 test('spy exposes exactly one tracked card only to its owner and expires on discard and new round',()=>{
@@ -97,4 +97,11 @@ test('bots complete special games using only masked snapshots and never lose a c
     let steps=0;while(s.phase==='playing'&&steps++<12000){const i=s.turn,command=botCommand(view(s,i),i);assert.ok(command);act(s,i,command);assert.deepEqual(ids(s),initial);}
     assert.equal(s.phase,'finished');assert.equal(s.pendingDraw,null);assert.ok(s.players[s.winner].hand.length===0);
   }
+});
+
+test('legacy 130-card checkpoints finish unchanged and use the new rare-swap deck on the next round',()=>{
+  const authority=new RoomAuthority('Legacy','A',crypto.randomUUID(),{rules:'special'});authority.join('B',crypto.randomUUID());
+  authority.state.deck.push({id:'legacy-swap',color:'wild',value:'swap'});const before=ids(authority.state);assert.equal(before.length,130);
+  const restored=new RoomAuthority('','','',{saved:structuredClone(authority.checkpoint())});assert.deepEqual(ids(restored.state),before);
+  startRound(restored.state);assert.equal(ids(restored.state).length,129);assert.equal([...restored.state.deck,...restored.state.pile,...restored.state.players.flatMap(p=>p.hand)].filter(c=>c.value==='swap').length,1);
 });

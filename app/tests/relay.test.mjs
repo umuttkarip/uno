@@ -33,7 +33,7 @@ test('a special HTTPS lobby keeps its host rules for every join and rejects unkn
   assert.equal((await x.call('enter',{token:crypto.randomUUID(),body:{name:'X',room:'bad',scope:'test',rules:'forged'}})).status,400);
   await x.action(a,{type:'ready',round:0});const playing=await x.action(b,{type:'ready',round:0});assert.equal(playing.state.rules,'special');
   const full=JSON.parse(x.db.prepare('SELECT payload FROM relay_rooms WHERE name=?').get(a.key).payload).saved.state;
-  assert.equal([...full.deck,...full.pile,...full.players.flatMap(p=>p.hand)].length,130);
+  assert.equal([...full.deck,...full.pile,...full.players.flatMap(p=>p.hand)].length,129);
 });
 
 test('HTTPS spy reveals one card only to its owner; bomb retries never reroll or draw twice',async()=>{
@@ -58,7 +58,7 @@ test('special HTTPS games complete with two, three and six players, conserving e
   for(const count of [2,3,6]){
     const x=await setup(),players=[];for(let i=0;i<count;i++)players.push(await x.enter('P'+i,'special-complete','test',crypto.randomUUID(),'special'));
     for(const p of players)await x.action(p,{type:'ready',round:0});let packet=await x.call('state',{key:players[0].key,token:players[0].token}),steps=0;
-    while(packet.state.phase==='playing'&&steps++<5000){const p=players[packet.state.turn];packet=await x.call('state',{key:p.key,token:p.token});packet=await x.action({...packet,token:p.token},botCommand(packet.state,packet.state.me));assert.equal(packet.status,200);const s=JSON.parse(x.db.prepare('SELECT payload FROM relay_rooms').get().payload).saved.state;assert.equal([...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)].length,130);}
+    while(packet.state.phase==='playing'&&steps++<5000){const p=players[packet.state.turn];packet=await x.call('state',{key:p.key,token:p.token});packet=await x.action({...packet,token:p.token},botCommand(packet.state,packet.state.me));assert.equal(packet.status,200);const s=JSON.parse(x.db.prepare('SELECT payload FROM relay_rooms').get().payload).saved.state;assert.equal([...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)].length,129);}
     assert.equal(packet.state.phase,'finished');assert.equal(packet.state.players.reduce((n,p)=>n+p.wins,0),1);
   }
 });

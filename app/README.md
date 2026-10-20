@@ -35,7 +35,7 @@ Masa ve kart tasarımları manuel onay bekler; canlı sitede varsayılan yeşil 
 
 ## 6.0 · Özel mod
 
-Girişte Normal / Özel seçilir; ikisi de çevrimdışı bilgisayarla veya 2–6 kişilik grup masasında oynanır. Masayı ilk açanın kuralı bütün katılanlarda geçerlidir. Normal deste 108, özel deste 130 karttır. Çekme seçeneği bütün özel kartlar eldeyken de serbesttir.
+Girişte Normal / Özel seçilir; ikisi de çevrimdışı bilgisayarla veya 2–6 kişilik grup masasında oynanır. Masayı ilk açanın kuralı bütün katılanlarda geçerlidir. Normal deste 108, özel deste 129 karttır; Takas özel destede yalnız bir adettir. Çekme seçeneği bütün özel kartlar eldeyken de serbesttir.
 
 Gözcü, seçilen rakibin rastgele tek kartını yalnız oynayana açar; kart el değiştirse de görünür, atıldığında kapanır. Bomba sonraki oyuncuya rastgele 1–3 kartlık bekleyen ceza verir ve yere inişte kısa bir ses çıkarır. Kalkan birikmiş cezayı değiştirmeden sonraki oyuncuya, Yansıtma son saldırıyı yapan oyuncuya taşır; bu iki savunmada aktif renk korunur. Ceza yoksa bu jokerler renk seçilerek oynanabilir.
 
@@ -43,6 +43,11 @@ Takas seçilen rakiple bütün kalan eli değiştirir. Hediye elden seçilen bir
 
 Klasik kartlar yerel vektör sembolleri kullanır. Kediler, Sude, Kuromi, Adventure Time ve Minecraft için yedi etkiye özel sekizer saydam çizim oluşturuldu; yeni görseller yalnız Özel modda o deste seçilince yüklenir (deste başına yaklaşık 50–81 KB). Kart/masa tasarımları hâlâ yalnız /uno/test/ üzerinde; ana sürümde ayrı onay bayrakları false kalır. Bot testi: https://umuttkarip.github.io/uno/test/?modo=bot&rules=special . Yalnız yeni kartların galerisi: https://umuttkarip.github.io/uno/test/desteler.html?ozel=1 . Üretim istemleri SPECIAL_CARD_ART_PROMPTS.md içinde.
 
-201 otomatik test; klasik regresyonlar, hedef/kart seçimi, özel deste koruması, gizli bilgi, ceza zincirleri, tekrar gönderilen HTTPS istekleri, 2/3/6 oyunculu biten özel oyunlar ve sunum bekleyen bot oturumları doğrulanır.
+206 otomatik test; klasik regresyonlar, hedef/kart seçimi, özel deste koruması, gizli bilgi, ceza zincirleri, tekrar gönderilen HTTPS istekleri, 2/3/6 oyunculu biten özel oyunlar ve sunum bekleyen bot oturumları doğrulanır.
 
 6.0.1: Otomatik Minecraft masası önceki manuel arka planı saklar ve başka skin seçilince ona döner. Elle seçilen masa yenilemede korunur; elle Minecraft seçmek de serbesttir. Eski belirsiz Minecraft kayıtları yeşil varsayılan üzerinden onarılır. Beş yeni tema arka planı ve mevcut klasik yeşil yalnız ayrı /uno/test/masalar.html?gorunum=ozet sayfasında onay önizlemesidir; oyun seçeneklerine eklenmez. Üretim istemleri TABLE_BACKGROUND_PROPOSALS.md içinde.
+
+
+6.1.0: Her farklı skin seçimi kendi temalı masasına geçer; Klasik mevcut yeşil keçeyi açar. Elle seçilen eski keçe rengi veya başka temalı masa, aynı skin açıkken ve sayfa yenilendiğinde korunur; sonraki skin geçişi yeniden eş masayı seçer. Aynı skine tekrar basmak manuel tercihi bozmaz. Bu kural önceki baseTable geri dönüş davranışının yerini alır. Sude ahududu pembesi, özgün beyaz karakter ve sade kenar kurdeleleriyle yeniden çizildi. Beş temanın ayrı 720×1280 telefon kompozisyonları ve masaüstü halleri /uno/test/masalar.html üzerinde karşılaştırılır; oyun da ekran oranına göre doğru dosyayı kullanır. Altı yeni WebP toplam yaklaşık 285 KB, yalnız kullanılan arka plan yüklenir.
+
+Takas iki kart değişimi, El döndürme üç kartın masa çevresinde dolaşımıyla ayrılır. Yeni özel destede tek Takas (toplam129) bulunur; devam eden eski130 kartlı eller aynen tamamlanır ve sonraki el129 olur. HTTPS sunucusu ve bot aynı deste bileşimini kullanır. 206 test, ana/test derlemeleri, 390px oyun ve 320px önizleme kontrolleri geçti. Tasarımlar test oyununda kullanılabilir; ana oyunun kart ve masa onay bayrakları ayrı ayrı kapalıdır.

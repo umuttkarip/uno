@@ -6,7 +6,7 @@ import {planTransition} from '../public/table-motion.js';
 import {face} from '../public/cards.js';
 import {DECKS,deckFiles,specialDeckFiles} from '../public/card-themes.js';
 import {deck,SPECIAL_VALUES} from '../src/engine.js';
-import {specialSceneIndex} from '../public/special-cards.js';
+import {specialNames,specialIcon,specialSceneIndex} from '../public/special-cards.js';
 const c=(id,value='3',color='red')=>({id,value,color});
 const state=(hand,counts=[hand.length,5,4],top=c('top'),lastMove=null)=>({me:0,round:1,direction:1,top,lastMove,players:counts.map((count,i)=>i?{count,name:'P'+i}:{count,hand}),playable:hand.map(c=>c.id)});
 
@@ -40,4 +40,9 @@ test('all seven special faces have distinct symbols, dedicated scenes and unchan
     assert.equal(deckFiles(theme.id).some(f=>f.includes('-special')),false);
     for(const file of specialDeckFiles(theme.id)){const path=new URL('../public/'+file,import.meta.url);assert.ok((await stat(path)).size<110000);const bytes=await readFile(path);assert.equal(bytes.toString('ascii',8,12),'WEBP');}
   }
+});
+
+test('swap uses two exchanged cards while hand rotation uses three cards around the table',()=>{
+  assert.equal(specialNames.swap,'Takas');assert.equal(specialNames.rotate,'El döndürme');
+  assert.equal((specialIcon('swap').match(/<rect /g)??[]).length,2);assert.equal((specialIcon('rotate').match(/<rect /g)??[]).length,3);assert.notEqual(specialIcon('swap'),specialIcon('rotate'));
 });

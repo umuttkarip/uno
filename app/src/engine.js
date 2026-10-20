@@ -12,7 +12,7 @@ export function deck(rules='classic') {
   for (const value of ['wild','wild4']) for(let i=0;i<4;i++) cards.push({id:String(id++),color:'wild',value});
   if(rules==='special'){
     for(const value of ['spy','bomb','gift'])for(const color of COLORS)cards.push({id:String(id++),color,value});
-    for(const value of ['shield','swap','reflect','rotate'])for(let i=0;i<(value==='shield'?4:2);i++)cards.push({id:String(id++),color:'wild',value});
+    for(const value of ['shield','swap','reflect','rotate'])for(let i=0;i<({shield:4,swap:1,reflect:2,rotate:2})[value];i++)cards.push({id:String(id++),color:'wild',value});
   }
   return shuffle(cards);
 }
