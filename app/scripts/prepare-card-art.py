@@ -57,7 +57,13 @@ def pack(original):
         x, y = index % 4, index // 4
         tile = image.crop((round(x * image.width / 4), round(y * image.height / 4),
                            round((x + 1) * image.width / 4), round((y + 1) * image.height / 4)))
-        tile = isolated_cell(tile)
+        # Separate background-extracted edits retain both original atlas scenes.
+        override_name = {8:'cats-stop.png',9:'cats-blocked.png'}.get(index) if original.stem == 'cats-b' else None
+        override = SOURCES / override_name if override_name else None
+        if override is not None and override.exists():
+            tile = Image.open(override).convert('RGBA')
+        else:
+            tile = isolated_cell(tile)
         bounds = tile.getchannel('A').getbbox()
         if bounds:
             tile = tile.crop(bounds)

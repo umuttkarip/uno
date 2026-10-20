@@ -42,3 +42,20 @@ Use case: illustration-story. Asset: second 4x4 TRANSPARENT illustration atlas f
 14 WILD: Lady Rainicorn winds an elaborate swirling rainbow loop around four floating blank red yellow green blue cards, cheerful vivid magical scene;
 15 WILD DRAW FOUR: epic Finn, Jake, BMO and Princess Bubblegum ensemble, each with a single large blank card red yellow green blue, four cards total in dynamic radial fan, highest-detail special illustration with magical sparks;
 16 CARD BACK: Finn and Jake together with BMO in front of their treehouse, a compact colorful oval composition with sword and backpack motifs. Clear actual-alpha background, readable at90px. Keep TV character silhouettes/proportions, not 3D, not realistic.
+
+## 5.1.1 · Kedi engel çizimlerinin saydamlaştırılması
+
+Yerleşik `image_gen`, `transparent_background: true`; referans ve düzenleme hedefi özgün `app/.local/card-art-source/cats-b.png`. Kaynak atlas korunur. Tekli çıktılar aynı klasörde `cats-stop.png` ve `cats-blocked.png` olarak saklanır; yalnız atlas hücre 8/9 değiştirilir.
+
+### cats-stop.png
+
+```text
+Use case: background-extraction / precise-object-edit. Edit target: the attached existing 4-by-4 illustration atlas. Extract ONLY the gray tabby cat in the FIRST COLUMN OF THE THIRD ROW, the cat facing forward with a large pink-padded paw held toward the viewer in a STOP gesture. The other 15 drawings are reference context only and MUST NOT appear in the output. Remove the entire rectangular brown wooden doorway, side posts, door panel, dark interior and all surrounding scenery from this one illustration. Preserve the same cute gray striped cat identity, white muzzle and chest, pink nose, yellow eyes, mildly serious small frown, head proportions, foreshortened pink paw pads, delicate warm storybook watercolor/ink linework. Keep the paw held prominently toward us, with the same expression and pose. Complete any missing fur/body edge naturally as a compact seated cat, with a small curled striped tail and paws, so the silhouette is organic. This is a production game sprite: one isolated cat, full organic silhouette, actual TRANSPARENT background, with generous small clear margin around all sides, no white box, no paper rectangle, no doorway/frame, no scenery, no drop shadow, no extra objects, no typography, no card or numbers, no other characters. Use the existing drawing as faithfully as possible, do not replace it with a different style, toy, realistic photograph, or 3D render. Output one square transparent cutout of that single cat only.
+```
+
+### cats-blocked.png
+
+```text
+Use case: background-extraction / precise-object-edit. Edit target is the attached existing 4-by-4 illustration atlas. Extract ONLY the SECOND COLUMN OF THE THIRD ROW: a black-and-white tuxedo cat sleeping in the foreground while an orange ginger cat behind it is annoyed that it cannot pass. The other 15 illustrations are context only and MUST NOT appear. Remove all rectangular brown wooden doorframe, side posts, door panel, background rectangle and floor/platform. Preserve BOTH original cats and their arrangement, proportions, cute watercolor storybook hand-inked drawing style and identities. The foreground tuxedo cat is sprawled horizontally asleep, eyes closed, white muzzle/white belly/white paws, pink nose, curled tail on its right. The ginger cat behind peers over the sleeping cat, mouth open in exasperation, both ears up, two forepaws visible, with the small red comic anger mark beside its head. Complete their organically rounded furry edges naturally. Preserve the visual meaning of a cat blocking the other's passage, but with NO literal doorway or rectangular frame remaining. This is an isolated production game sprite. One clean coherent cutout containing the two cats, with actual TRANSPARENT background around all sides and a small clear margin. No white square, no paper rectangle, no scenery, no floor line, no drop shadow, no text, no card numbers or icons, no other animals. Do not change to 3D, toy/plush, photo, or anime style. Keep the existing simple affectionate cat illustration style. Square transparent output.
+```
+

@@ -2,7 +2,8 @@ export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:
 let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
-export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:[`./assets/cards/${id}-a.webp`,`./assets/cards/${id}-b.webp`];
+const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
+export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:[atlasFile(id,'a'),atlasFile(id,'b')];
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
 export function sceneIndex(c,back=false){
@@ -16,7 +17,7 @@ function art(theme,index,{preview=false,x=0,y=42,size=108}={}){
   if(preview)return `<image href="./assets/cards/${theme}-cover.webp" x="${x}" y="${y}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet"/>`;
   const local=index%16,column=local%4,row=Math.floor(local/4),sheet=index<16?'a':'b';
   // The square viewport cuts only the atlas cell. It draws no panel or frame.
-  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="./assets/cards/${theme}-${sheet}.webp" x="0" y="0" width="400" height="400"/></svg>`;
+  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="${atlasFile(theme,sheet)}" x="0" y="0" width="400" height="400"/></svg>`;
 }
 const palette=[colors.red,colors.yellow,colors.green,colors.blue];
 function glyph(value,fill,ink='none',weight=.8){
@@ -31,7 +32,7 @@ const paw=(x,y,scale,fill)=>`<g transform="translate(${x} ${y}) rotate(-23) scal
 const skull=(x,y,scale,fill)=>`<g transform="translate(${x} ${y}) scale(${scale})" fill="${fill}"><path d="M-7 0a7 6 0 1 1 14 0c0 3-2 4-4 5v3H-3V5c-2-1-4-2-4-5Z"/><ellipse cx="-2.5" cy="0" rx="1.6" ry="2" fill="#322036"/><ellipse cx="2.5" cy="0" rx="1.6" ry="2" fill="#322036"/></g>`;
 
 function watermark(c,color,theme){
-  if(c.value==='wild')return '';
+  if(theme==='cats'||c.value==='wild')return '';
   const value=/^\d$/.test(c.value)?c.value:c.value==='wild4'?'+4':c.value==='draw2'?'+2':null;
   const fill=theme==='kuromi'?'#fff0fb':theme==='adventure'?'#fff9dc':color;
   if(value)return `<text x="${theme==='kuromi'?11:8}" y="${theme==='adventure'?83:86}" fill="${fill}" stroke="${theme==='adventure'?'#172c32':theme==='kuromi'?'#603b6d':'none'}" stroke-width="${theme==='adventure'?2:theme==='kuromi'?1.3:0}" paint-order="stroke" font-family="Arial,Helvetica,sans-serif" font-size="${value.length>1?43:68}" font-style="italic" font-weight="900" letter-spacing="-5">${value}</text>`;
@@ -67,7 +68,7 @@ export function themedFace(c,back,theme,{preview=false}={}){
   const color=colors[c.color]??colors.wild,wild=c.color==='wild',index=sceneIndex(c,back);
   const prints={cats:catPrint,seal:sealPrint,kuromi:kuromiPrint,adventure:adventurePrint};
   const wideCats=new Set([0,1,7,12,15,18,19,20,21,23,26,27,30]);
-  const placement=theme==='cats'?{x:wideCats.has(index)?-2:12,y:wideCats.has(index)?49:46,size:wideCats.has(index)?104:103}:theme==='seal'?{x:1,y:40,size:108}:theme==='kuromi'?{x:8,y:43,size:105}:{x:-1,y:43,size:110};
+  const placement=theme==='cats'?{x:index===24?-4:wideCats.has(index)?-7:2,y:index===24?24:wideCats.has(index)?34:30,size:index===24?121:114}:theme==='seal'?{x:1,y:40,size:108}:theme==='kuromi'?{x:8,y:43,size:105}:{x:-1,y:43,size:110};
   const face=back?backPrint(theme,preview):`${prints[theme](color,wild,index)}${watermark(c,color,theme)}${art(theme,index,placement)}`;
   const ink=f.ink;
   const cornerFill=c.color==='yellow'?'#30252b':f.paper;
