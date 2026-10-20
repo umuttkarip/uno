@@ -3,7 +3,7 @@ let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
 const atlasFile=(theme,sheet)=>`./assets/cards/${theme==='minecraft'?'minecraft-art':theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
-export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(id==='minecraft'?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
+export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(['minecraft','adventure'].includes(id)?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
 export function sceneIndex(c,back=false,theme='classic'){
@@ -17,6 +17,16 @@ export function sceneIndex(c,back=false,theme='classic'){
   if(back)return 31;
   const color=Math.max(0,['red','yellow','green','blue'].indexOf(c.color));
   const copy=(Number.parseInt(c.id,10)||0)%2;
+  if(theme==='adventure'){
+    // Retain the original 24 number scenes and seven action scenes unchanged.
+    // New art occupies 32–50 (numbers) and 51–63 (actions); 31 is always the back.
+    if(/^\d$/.test(c.value)){
+      const ordinal=c.value==='0'?0:Number(c.value)*2-1+copy,scene=(color*19+ordinal)%43;
+      return scene<24?scene:scene+8;
+    }
+    const action=(color+copy)%4,variant=(Number.parseInt(c.id,10)||0)%4;
+    return ({skip:[24,25,51,52][action],reverse:[26,27,53,54][action],draw2:[28,55,56,57][action],wild:[29,58,59,60][variant],wild4:[30,61,62,63][variant]})[c.value]??29;
+  }
   if(/^\d$/.test(c.value)){
     if(theme==='kuromi'){
       const ordinal=c.value==='0'?0:Number(c.value)*2-1+copy;
@@ -29,7 +39,7 @@ export function sceneIndex(c,back=false,theme='classic'){
 }
 function art(theme,index,{preview=false,x=0,y=42,size=108}={}){
   if(preview)return `<image href="./assets/cards/${theme}-cover.webp" x="${x}" y="${y}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet"/>`;
-  const local=index%16,column=local%4,row=Math.floor(local/4),sheet=index<16?'a':index<32?'b':'c';
+  const local=index%16,column=local%4,row=Math.floor(local/4),sheet=['a','b','c','d'][Math.floor(index/16)];
   // The square viewport cuts only the atlas cell. It draws no panel or frame.
   return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="${atlasFile(theme,sheet)}" x="0" y="0" width="400" height="400"/></svg>`;
 }

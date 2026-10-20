@@ -106,7 +106,7 @@ Kullanıcı önceki yumuşak renk geçişlerini/parlak kenarları ve pixel tipog
 
 ## 5.4.3 · Çerçevesiz katmanlı kart baskısı
 
-5.4.2oval baskı reddedildi. Başarılı referans Adventure Time’dır; amaç karakteri saydam çevresiyle kartın kendi zeminine yerleştirmektir. Built-in imagegen kullanıldı; yeni kaynaklar app/.local/card-art-source/minecraft-cutouts/{a,b,c,d}.png. Orijinal tam sahneler, önceki çıktılar ve kaynaklar yerinde tutulur. Runtime WebP’ler aynı isimlerle yeni alfa atlaslara dönüştürülür, ?v=3 ile önbellek yenilenir. prepare-minecraft-art.py yalnız mekanik alfa/oluk ayırma, kırpma, yeniden boyutlandırma ve sıkıştırma yapar. Kart baskısı native SVG: bütün yüzeye yayılan mat UNO rengi, açık kağıt ve blok arazi; görseller için oval/daire/kare pencere veya maske yoktur. Özel kartların etkileşimli props/sahneleri büyük yerleşir. Ana onaylar hâlâfalse.
+5.4.2oval baskı reddedildi. Başarılı referans Adventure Time’dır; amaç karakteri saydam çevresiyle kartın kendi zeminine yerleştirmektir. Built-in imagegen kullanıldı; yeni kaynaklar app/.local/card-art-source/minecraft-cutouts/{a,b,c,d}.png. Orijinal tam sahneler, önceki çıktılar ve kaynaklar yerinde tutulur. Son runtime dosyaları minecraft-art-{a,b,c,d,cover}.webp olarak ayrıdır. Eski minecraft-{a,b,c,d,cover}.webp aynı kalır; açık eski istemciler yanlış atlas oranı görmez. Yeni tema yalnız yeni alfa dosyalarını indirir. prepare-minecraft-art.py yalnız mekanik alfa/oluk ayırma, kırpma, yeniden boyutlandırma ve sıkıştırma yapar. Kart baskısı native SVG: bütün yüzeye yayılan mat UNO rengi, açık kağıt ve blok arazi; görseller için oval/daire/kare pencere veya maske yoktur. Özel kartların etkileşimli props/sahneleri büyük yerleşir. Ana onaylar hâlâfalse.
 
 ### Saydam atlas a istemi
 

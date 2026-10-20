@@ -34,6 +34,31 @@ test('Minecraft illustrations are transparent layers rather than oval or rectang
   for(const sheet of ['a','b','c','d']){const data=await readFile(new URL('../public/assets/cards/minecraft-art-'+sheet+'.webp',import.meta.url));assert.equal(data.toString('ascii',12,16),'VP8X');assert.ok(data[20]&16,sheet+' must preserve alpha');}
   for(const c of deck()){const front=face(c,false,'minecraft');assert.doesNotMatch(front,/<clipPath|<mask|<ellipse|linearGradient|radialGradient/);assert.match(front,/<image/);}
 });
+
+test('Adventure Time uses all 64 scenes, with no number scene appearing more than twice',()=>{
+  const cards=deck(),numbers=cards.filter(c=>/^\d$/.test(c.value)),counts=new Map();
+  for(const c of numbers){const index=sceneIndex(c,false,'adventure');assert.ok(index<24||index>=32&&index<=50);counts.set(index,(counts.get(index)??0)+1);}
+  assert.equal(counts.size,43);assert.ok([...counts.values()].every(count=>count<=2));
+  for(const color of ['red','yellow','green','blue']){const sameColor=numbers.filter(c=>c.color===color);assert.equal(new Set(sameColor.map(c=>sceneIndex(c,false,'adventure'))).size,sameColor.length);}
+  for(const value of ['0','1','2','3','4','5','6','7','8','9']){const sameValue=numbers.filter(c=>c.value===value);assert.equal(new Set(sameValue.map(c=>sceneIndex(c,false,'adventure'))).size,sameValue.length);}
+  const groups={skip:[24,25,51,52],reverse:[26,27,53,54],draw2:[28,55,56,57],wild:[29,58,59,60],wild4:[30,61,62,63]};
+  for(const [value,indices] of Object.entries(groups))assert.deepEqual([...new Set(cards.filter(c=>c.value===value).map(c=>sceneIndex(c,false,'adventure')))].sort((a,b)=>a-b),indices);
+  for(const color of ['red','yellow','green','blue'])for(const value of ['skip','reverse','draw2']){const pair=cards.filter(c=>c.color===color&&c.value===value);assert.notEqual(sceneIndex(pair[0],false,'adventure'),sceneIndex(pair[1],false,'adventure'));}
+  const allCounts=new Map();for(const c of cards){const i=sceneIndex(c,false,'adventure');allCounts.set(i,(allCounts.get(i)??0)+1);}assert.ok([...allCounts.values()].every(count=>count<=2));
+  const fronts=new Set(cards.map(c=>sceneIndex(c,false,'adventure')));assert.equal(fronts.size,63);assert.equal(fronts.has(31),false);
+  for(let index=0;index<64;index++)assert.ok(index===31||fronts.has(index));
+  assert.equal(deckFiles('adventure').length,4);
+});
+
+test('Adventure Time expansion keeps transparent artwork and uses the correct new atlas cells',async()=>{
+  // VP8L: after the signature, width/height occupy 28 bits and alpha is bit 28.
+  // https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification#3_riff_header
+  for(const sheet of ['c','d']){const data=await readFile(new URL('../public/assets/cards/adventure-'+sheet+'.webp',import.meta.url));assert.equal(data.toString('ascii',12,16),'VP8L');assert.ok(data[24]&16,sheet+' must preserve alpha');}
+  for(const c of deck()){
+    const index=sceneIndex(c,false,'adventure'),sheet=['a','b','c','d'][Math.floor(index/16)],markup=face(c,false,'adventure');
+    assert.match(markup,new RegExp('adventure-'+sheet+'\\.webp'));assert.doesNotMatch(markup,/<clipPath|<mask/);
+  }
+});
 test('appearance preferences validate identifiers and tolerate disabled storage',()=>{
   let saved;const store={getItem:()=>saved,setItem:(key,value)=>saved=value};assert.deepEqual(readAppearance(store),{table:'green',deck:'classic'});
   for(const table of TABLES)for(const deck of DECKS){saveAppearance({table:table.id,deck:deck.id},store);assert.deepEqual(readAppearance(store),{table:table.id,deck:deck.id});}
