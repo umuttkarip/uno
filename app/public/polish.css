@@ -162,7 +162,7 @@ body{background-image:radial-gradient(ellipse at 50% 45%,var(--felt-glow,#246244
 .chat-panel[data-compact="true"] .emotes{padding-top:0}
 .chat-panel[data-tight="true"] .emotes{grid-template-columns:repeat(8,minmax(0,1fr))}
 .chat-panel[data-tight="true"] .emotes button{min-height:36px;padding:2px}
-@media(max-height:480px) and (min-width:600px){.chat-panel{width:min(548px,calc(100vw - 24px));grid-template-areas:"heading heading" "stickers emotes" "composer composer";grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);bottom:10px}.chat-panel .emotes{padding:0 0 0 7px;border-top:0;border-left:1px solid #cfdecc18}.chat-panel .sticker-choice{height:54px}.chat-panel .sticker-choice img{height:50px}}
+@media(max-height:480px) and (min-width:600px){.chat-panel{width:min(548px,calc(100vw - 24px));grid-template-areas:"heading heading" "stickers emotes" "composer composer";grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);bottom:calc(10px + var(--chat-keyboard-offset,0px))}.chat-panel .emotes{padding:0 0 0 7px;border-top:0;border-left:1px solid #cfdecc18}.chat-panel .sticker-choice{height:54px}.chat-panel .sticker-choice img{height:50px}}
 @media(max-width:700px){.design-preview .player-name,.design-preview .match[data-seats] .opponent-zone .player-name{font-size:12px}}
 @media(max-width:360px){.design-preview .match[data-seats="6"] .opponent-zone .player-name{font-size:10px;gap:3px}.design-preview .match[data-seats="6"] .uno-mark{font-size:8px}}
 @media(max-width:700px){.design-preview body:is([data-players="3"],[data-players="4"],[data-players="5"],[data-players="6"]) .messages:has(>.uno-message:only-child){top:174px}}
