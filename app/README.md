@@ -31,3 +31,16 @@ Masa ve kart tasarımları manuel onay bekler; canlı sitede varsayılan yeşil 
 5.5.1: Yeşil ilk varsayılan, kayıtlı kart/masa tercihleri bağımsız korunur. Minecraft seçimi eş masaya geçer; sonra kişisel arka plan serbesttir. Her renkte aksolotl ve Marceline vardır; Minecraft3yeniaksolotl ve yeniarka ile67aktif sahne/231284B kullanır. Yalnız test.
 
 5.5.2: Kuromi ve Adventure Time kartlarında ortadaki tekrar sayı/eylem baskısı kaldırıldı; köşe işaretleri ve çizimler korunur. Yalnız test.
+
+
+## 6.0 · Özel mod
+
+Girişte Normal / Özel seçilir; ikisi de çevrimdışı bilgisayarla veya 2–6 kişilik grup masasında oynanır. Masayı ilk açanın kuralı bütün katılanlarda geçerlidir. Normal deste 108, özel deste 130 karttır. Çekme seçeneği bütün özel kartlar eldeyken de serbesttir.
+
+Gözcü, seçilen rakibin rastgele tek kartını yalnız oynayana açar; kart el değiştirse de görünür, atıldığında kapanır. Bomba sonraki oyuncuya rastgele 1–3 kartlık bekleyen ceza verir ve yere inişte kısa bir ses çıkarır. Kalkan birikmiş cezayı değiştirmeden sonraki oyuncuya, Yansıtma son saldırıyı yapan oyuncuya taşır; bu iki savunmada aktif renk korunur. Ceza yoksa bu jokerler renk seçilerek oynanabilir.
+
+Takas seçilen rakiple bütün kalan eli değiştirir. Hediye elden seçilen bir kartı seçilen oyuncuya verir; son kalan kartı hediye etmek eli kazandırabilir. El döndürme bütün elleri mevcut oyun yönünde bir koltuk ilerletir. Takas, Gözcü veya El döndürme son kart olarak atılırsa başka seçim istemeden eli bitirir; renkli/joker kartların olağan renk kuralları geçerlidir. Zorunlu el aktarımıyla tek kart alan rakip otomatik UNO cezasına sokulmaz.
+
+Klasik kartlar yerel vektör sembolleri kullanır. Kediler, Sude, Kuromi, Adventure Time ve Minecraft için yedi etkiye özel sekizer saydam çizim oluşturuldu; yeni görseller yalnız Özel modda o deste seçilince yüklenir (deste başına yaklaşık 50–81 KB). Kart/masa tasarımları hâlâ yalnız /uno/test/ üzerinde; ana sürümde ayrı onay bayrakları false kalır. Bot testi: https://umuttkarip.github.io/uno/test/?modo=bot&rules=special . Yalnız yeni kartların galerisi: https://umuttkarip.github.io/uno/test/desteler.html?ozel=1 . Üretim istemleri SPECIAL_CARD_ART_PROMPTS.md içinde.
+
+201 otomatik test; klasik regresyonlar, hedef/kart seçimi, özel deste koruması, gizli bilgi, ceza zincirleri, tekrar gönderilen HTTPS istekleri, 2/3/6 oyunculu biten özel oyunlar ve sunum bekleyen bot oturumları doğrulanır.

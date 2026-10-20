@@ -6,12 +6,12 @@ import {deck} from '../src/engine.js';
 import {planTransition} from '../public/table-motion.js';
 
 const memory=()=>{const entries=new Map();return {getItem:key=>entries.get(key)??null,setItem:(key,value)=>entries.set(key,value),removeItem:key=>entries.delete(key)};};
-async function setup(t){
+async function setup(t,rules='classic'){
   t.mock.timers.enable({apis:['setTimeout','setInterval','Date'],now:1000});
   t.mock.method(Math,'random',()=>0);
   for(const key of ['sessionStorage','localStorage']){const old=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,value:memory()});t.after(()=>old?Object.defineProperty(globalThis,key,old):Reflect.deleteProperty(globalThis,key));}
   const states=[],errors=[],messages=[],game=new LocalGame({onState:s=>states.push(s),onError:e=>errors.push(e),onMessage:m=>messages.push(m)});
-  await game.enter('A');t.after(()=>game.shutdown());
+  await game.enter('A',undefined,{rules});t.after(()=>game.shutdown());
   return {game,states,errors,messages,tick:n=>t.mock.timers.tick(n),ack:()=>game.presented(states.at(-1).version)};
 }
 function fixed(game,human,bot,{turn=0}={}){
@@ -24,6 +24,16 @@ function fixed(game,human,bot,{turn=0}={}){
   return s;
 }
 const red=value=>['red',value],blue=value=>['blue',value],four=['wild','wild4'];
+
+test('special solo sessions restore separately and wait for bomb presentation before a response timer',async t=>{
+  const q=await setup(t,'special'),s=q.game.authority.state,cards=deck('special');assert.equal(s.rules,'special');assert.ok(q.game.storageKey.includes('solo-special'));
+  const pick=(color,value)=>cards.splice(cards.findIndex(c=>c.color===color&&c.value===value),1)[0];
+  s.players[0].hand=[pick('wild','shield'),pick('blue','9')];s.players[1].hand=[pick('red','bomb')];s.pile=[pick('red','7')];s.deck=cards;s.color='red';s.turn=1;
+  q.game.authority.restartTurn();q.game.authority.revision++;q.game.publish();q.ack();q.tick(750);
+  assert.equal(s.pendingDraw.value,'bomb');assert.equal(s.players[0].hand.length,2);q.tick(TURN_DURATION*2);assert.equal(s.players[0].hand.length,2);
+  q.ack();await q.game.action({type:'play',cardId:s.players[0].hand[0].id,uno:true});assert.equal(s.turn,1);assert.equal(s.color,'red');
+  q.game.shutdown();const restored=new LocalGame({onState:()=>{}});t.after(()=>restored.shutdown());await restored.enter('A',undefined,{rules:'special'});assert.equal(restored.authority.state.rules,'special');assert.equal(restored.authority.state.pendingDraw.count,s.pendingDraw.count);assert.deepEqual(q.errors,[]);
+});
 
 for(const value of ['skip','reverse'])test(`computer mode does not demand UNO while ${value} leaves the human in control`,async t=>{
   const q=await setup(t),s=fixed(q.game,[red(value),red('9')],[blue('3'),blue('4')]);q.ack();

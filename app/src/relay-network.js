@@ -10,12 +10,12 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 export class TableConnection {
   constructor(callbacks,{fetch:transport=globalThis.fetch.bind(globalThis),base=RELAY_URL}={}){Object.assign(this,callbacks);this.fetch=transport;this.base=base;this.closed=false;this.controllers=new Set();this.cursor=0;this.version=0;this.seenMessages=new Set();}
-  async enter(name,room){
+  async enter(name,room,{rules='classic'}={}){
     this.name=validName(name);this.room=validName(room,'room');this.storageKey=tableSessionKey(room);
     const previous=read(this.storageKey);this.token=previous?.name===this.name?previous.token:crypto.randomUUID();
     if(!/^[\w-]{20,160}$/.test(this.token??''))this.token=crypto.randomUUID();
     let packet;
-    for(let attempt=0;attempt<2;attempt++){try{packet=await this.request('enter',{name:this.name,room:this.room,scope:DESIGN_PREVIEW?'test':'main'});break;}catch(error){if(this.closed||error.status&&error.status<500||attempt===1)throw error;await delay(400);}}
+    for(let attempt=0;attempt<2;attempt++){try{packet=await this.request('enter',{name:this.name,room:this.room,rules,scope:DESIGN_PREVIEW?'test':'main'});break;}catch(error){if(this.closed||error.status&&error.status<500||attempt===1)throw error;await delay(400);}}
     if(this.closed)return;this.key=packet.key;this.apply(packet);save(this.storageKey,{name:this.name,token:this.token,key:this.key});void this.poll();
   }
   async request(route,body,{poll=false,keepalive=false}={}){

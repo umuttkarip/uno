@@ -1,6 +1,7 @@
 import {TableConnection,tableSessionKey} from '../src/network.js';
 import {COLORS,roomKey,LABELS} from '../src/engine.js';
-import {back} from './cards.js';
+import {back,face} from './cards.js';
+import {nextPlayChoice} from './play-choice.js';
 import {MultiTableMotion,seating} from './table-motion-multi.js';
 import {LocalGame} from '../src/local-game.js';
 import {controls,chosenColor,feedback} from './table-state.js';
@@ -11,13 +12,14 @@ import {readStats,rememberPlayer,recordResult} from '../src/scores.js';
 import {storageKey} from '../src/environment.js';
 
 const $=id=>document.getElementById(id);
-let connection,state,busy=false,entering=false,moving=false,pendingCard,resultRound=-1;
+let connection,state,busy=false,entering=false,moving=false,pendingCard,pendingPlay,resultRound=-1;
 let present=true,suppressClickUntil=0,clockOffset=0,processing=false,generation=0;
 let queue=[],chatAnimation,chatGeneration=0,chatReady=false,sending=false;
 let restylePending=false;
 const messageTimers=new Set();
 const roomParam=new URL(location.href).searchParams.get('masa');
 let mode=new URL(location.href).searchParams.get('modo')==='bot'?'bot':'group';
+let rules=new URL(location.href).searchParams.get('rules')==='special'?'special':'classic';
 if(roomParam)$('room').value=roomParam;
 $('deck-face').innerHTML=back();
 const seats={top:{zone:$('opponent-zone-top'),name:$('opponent-name'),hand:$('opponent-hand')},left:{zone:$('opponent-zone-left'),name:$('left-name'),hand:$('left-hand')},right:{zone:$('opponent-zone-right'),name:$('right-name'),hand:$('right-hand')},upperLeft:{zone:$('opponent-zone-upper-left'),name:$('upper-left-name'),hand:$('upper-left-hand')},upperRight:{zone:$('opponent-zone-upper-right'),name:$('upper-right-name'),hand:$('upper-right-hand')}};
@@ -28,6 +30,8 @@ function renderHistory(){const stats=readStats($('name').value.trim());$('home-s
 $('name').addEventListener('input',renderHistory);renderHistory();
 function setMode(value){mode=value==='bot'?'bot':'group';for(const button of document.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));$('room').hidden=mode==='bot';$('room-label').hidden=mode==='bot';$('room').required=mode!=='bot';}
 document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{if(!entering)setMode(button.dataset.mode);});setMode(mode);
+function setRules(value){rules=value==='special'?'special':'classic';for(const button of document.querySelectorAll('[data-rules]'))button.setAttribute('aria-pressed',String(button.dataset.rules===rules));}
+document.querySelectorAll('[data-rules]').forEach(button=>button.onclick=()=>{if(!entering)setRules(button.dataset.rules);});setRules(rules);
 function setScores(open){$('score-panel').hidden=!open;$('score-toggle').setAttribute('aria-expanded',String(open));}
 function renderScores(){
   if(!state)return;
@@ -74,14 +78,14 @@ function setChat(open,instant=false,focusInput=false){
 
 function showLogin(message=''){
   generation++;queue=[];processing=false;
-  connection?.shutdown();connection=null;state=null;busy=false;entering=false;moving=false;sending=false;pendingCard=null;present=true;resultRound=-1;
+  connection?.shutdown();connection=null;state=null;busy=false;entering=false;moving=false;sending=false;pendingCard=null;pendingPlay=null;present=true;resultRound=-1;
   motion.reset();
   $('login').hidden=false;$('match').hidden=true;$('match').dataset.motion='settled';$('leave').hidden=true;$('enter').disabled=false;$('entry-error').textContent=message;
   $('score-toggle').hidden=true;setScores(false);
   document.body.dataset.players='0';
   appearance.setBusy(false);renderHistory();
   document.body.classList.remove('disconnected');
-  setChat(false,true);$('color-dialog').close();$('result-dialog').close();$('messages').replaceChildren();
+  setChat(false,true);$('choice-dialog').close();$('rules-label').hidden=true;$('color-dialog').close();$('result-dialog').close();$('messages').replaceChildren();
   for(const timer of messageTimers)clearTimeout(timer);messageTimers.clear();
 }
 
@@ -98,11 +102,12 @@ $('entry-form').addEventListener('submit',async event=>{
     onPresence:online=>{if(connection!==current)return;present=online;document.body.classList.toggle('disconnected',!online);renderControls();}
   });
   try{
-    await appearance.ensureDeck();if(connection!==current)return;restyle();
-    await current.enter(name,room);if(connection!==current)return;
+    await appearance.ensureDeck(rules);if(connection!==current)return;restyle();
+    await current.enter(name,room,{rules});if(connection!==current)return;
     rememberPlayer(name);
     const url=new URL(location.href);url.searchParams.delete('name');url.searchParams.delete('room');
     if(mode==='bot'){url.searchParams.delete('masa');url.searchParams.set('modo','bot');}else{url.searchParams.set('masa',room);url.searchParams.set('modo','group');}
+    if(rules==='special')url.searchParams.set('rules','special');else url.searchParams.delete('rules');
     history.replaceState(null,'',url);
     renderControls();
   }catch(error){if(connection===current)showLogin(error.message);}
@@ -124,10 +129,11 @@ async function drain(){
     if(!state)continue;
     $('login').hidden=true;$('match').hidden=false;$('leave').hidden=false;
     if(previous&&previous.round!==state.round)$('result-dialog').close();
-    if(pendingCard&&!state.playable.includes(pendingCard)){$('color-dialog').close();pendingCard=null;}
+    if(pendingPlay&&!state.playable.includes(pendingPlay.cardId))cancelPlay();
+    rules=state.rules??'classic';$('rules-label').hidden=rules!=='special';
     const events=feedback(previous,state);
     moving=true;$('match').dataset.motion='moving';renderControls();
-    try{await motion.update(previous,state,{present});}catch(error){console.error('Card transition failed',error);}
+    try{await appearance.ensureDeck(rules);if(version!==generation)return;await motion.update(previous,state,{present});}catch(error){console.error('Card transition failed',error);}
     if(version!==generation)return;
     const timing=connection?.presented?.(snapshot.version);
     if(timing){state.turnDeadline=timing.turnDeadline;state.unoDeadline=timing.unoDeadline;clockOffset=timing.serverNow-Date.now();}
@@ -204,15 +210,34 @@ $('hand').addEventListener('click',event=>{
   const button=event.target.closest('[data-card]');if(!button||!state||!present)return;
   const c=state.players[state.me].hand.find(c=>c.id===button.dataset.card);
   if(!c||!state.playable.includes(c.id))return;
-  if(c.color==='wild'){pendingCard=c.id;$('color-dialog').showModal();}
-  else void action('play',{cardId:c.id});
+  pendingPlay={cardId:c.id};advancePlay();
 });
+function cancelPlay(){pendingPlay=null;pendingCard=null;$('choice-dialog').close();$('color-dialog').close();}
+function advancePlay(){
+  if(!pendingPlay||!state)return;
+  const choice=nextPlayChoice(state,pendingPlay);
+  if(choice.type==='invalid'){cancelPlay();return;}
+  if(choice.type==='ready'){const play=pendingPlay;cancelPlay();void action('play',play);return;}
+  if(choice.type==='color'){pendingCard=pendingPlay.cardId;$('color-dialog').showModal();return;}
+  if(choice.type==='target'&&choice.players.length===1){pendingPlay.target=choice.players[0].index;advancePlay();return;}
+  $('choice-title').textContent=choice.type==='target'?'Oyuncu seç':'Vereceğin kartı seç';
+  const options=$('choice-options');options.replaceChildren();options.dataset.kind=choice.type;
+  for(const item of choice.type==='target'?choice.players:choice.cards){
+    const button=document.createElement('button');button.type='button';
+    if(choice.type==='target'){const name=document.createElement('span'),count=document.createElement('small');name.textContent=item.name;count.textContent=item.count+' kart';button.append(name,count);button.className='target-choice';button.onclick=()=>{pendingPlay.target=item.index;$('choice-dialog').close();advancePlay();};}
+    else{button.className='gift-choice';button.innerHTML=face(item);button.setAttribute('aria-label',(({red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi',wild:'Joker'})[item.color])+' '+(LABELS[item.value]??item.value));button.dataset.gift=item.id;button.onclick=()=>{pendingPlay.giftId=item.id;$('choice-dialog').close();advancePlay();};}
+    options.append(button);
+  }
+  $('choice-dialog').showModal();
+}
 document.querySelectorAll('[data-color]').forEach(button=>button.addEventListener('click',()=>{
-  const id=pendingCard;pendingCard=null;$('color-dialog').close();
-  if(id&&COLORS.includes(button.dataset.color))void action('play',{cardId:id,color:button.dataset.color});
+  if(pendingPlay&&COLORS.includes(button.dataset.color)){pendingPlay.color=button.dataset.color;pendingCard=null;$('color-dialog').close();advancePlay();}
 }));
-$('color-dialog').addEventListener('close',()=>pendingCard=null);
-$('color-dialog').addEventListener('click',event=>{if(event.target===$('color-dialog')){const box=event.target.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)event.target.close();}});
+$('choice-close').onclick=cancelPlay;
+for(const id of ['choice-dialog','color-dialog']){
+  $(id).addEventListener('cancel',cancelPlay);
+  $(id).addEventListener('click',event=>{if(event.target===$(id)){const box=event.target.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)cancelPlay();}});
+}
 $('draw').onclick=()=>{if(state)void action(controls(state).drawCommand);};$('pass').onclick=()=>action(state?.pendingDraw?'draw':'pass');$('catch').onclick=()=>action('catch');
 $('uno').onclick=()=>action('uno');$('lobby-ready').onclick=()=>action('ready');$('round-ready').onclick=()=>action('ready');
 $('invite').onclick=async()=>{try{const url=new URL(location.href);url.searchParams.set('masa',state.name);url.searchParams.set('modo','group');await navigator.clipboard.writeText(url.href);notice('Masa bağlantısı kopyalandı.');}catch{notice('Bağlantı kopyalanamadı.');}};
@@ -254,4 +279,4 @@ window.addEventListener('pointermove',event=>{if(!drag)return;const delta=event.
 function endDrag(){if(drag?.moved)suppressClickUntil=Date.now()+250;drag=null;$('hand-scroll').classList.remove('dragging');}
 window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
 window.addEventListener('pagehide',()=>connection?.shutdown());
-try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem(storageKey('uno-solo-v1'))):roomParam?JSON.parse(sessionStorage.getItem(tableSessionKey(roomParam))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}
+try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem(storageKey(rules==='special'?'uno-solo-special-v1':'uno-solo-v1'))):roomParam?JSON.parse(sessionStorage.getItem(tableSessionKey(roomParam))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}

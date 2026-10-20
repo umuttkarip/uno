@@ -15,7 +15,7 @@ async function setup(){
     const request=new Request(url,{method:route==='state'?'GET':'POST',headers:{Origin:origin,Authorization:'Bearer '+token,'Content-Type':'application/json'},...(route!=='state'?{body:JSON.stringify(body??{})}:{})});
     const response=await relayApi(request,env,{now:()=>time});return {status:response.status,...await response.json()};
   };
-  const enter=(name,room='23',scope='main',token=crypto.randomUUID())=>call('enter',{token,body:{name,room,scope}}).then(s=>({...s,token}));
+  const enter=(name,room='23',scope='main',token=crypto.randomUUID(),rules='classic')=>call('enter',{token,body:{name,room,scope,rules}}).then(s=>({...s,token}));
   const action=(p,command,id=crypto.randomUUID())=>call('action',{token:p.token,body:{key:p.key,version:p.version,after:p.cursor,id,command}});
   return {db,env,call,enter,action,advance:ms=>time+=ms};
 }
@@ -25,6 +25,42 @@ test('HTTPS lobby accepts the same room name, starts with two ready players and 
   const first=await x.action(a,{type:'ready',round:0});assert.equal(first.state.phase,'waiting');
   const second=await x.action(b,{type:'ready',round:0});assert.equal(second.state.phase,'playing');assert.equal(second.state.players[1].hand.length,7);assert.equal(second.state.players[0].hand,undefined);
   const host=await x.call('state',{token:a.token,key:a.key});assert.equal(host.state.players[0].hand.length,7);assert.equal(host.state.players[1].hand,undefined);assert.equal(JSON.stringify(host).includes(a.token),false);assert.equal(JSON.stringify(host).includes(b.token),false);
+});
+
+test('a special HTTPS lobby keeps its host rules for every join and rejects unknown rule sets',async()=>{
+  const x=await setup(),a=await x.enter('A','special-room','test',crypto.randomUUID(),'special'),b=await x.enter('B','special-room','test');
+  assert.equal(a.state.rules,'special');assert.equal(b.state.rules,'special');
+  assert.equal((await x.call('enter',{token:crypto.randomUUID(),body:{name:'X',room:'bad',scope:'test',rules:'forged'}})).status,400);
+  await x.action(a,{type:'ready',round:0});const playing=await x.action(b,{type:'ready',round:0});assert.equal(playing.state.rules,'special');
+  const full=JSON.parse(x.db.prepare('SELECT payload FROM relay_rooms WHERE name=?').get(a.key).payload).saved.state;
+  assert.equal([...full.deck,...full.pile,...full.players.flatMap(p=>p.hand)].length,130);
+});
+
+test('HTTPS spy reveals one card only to its owner; bomb retries never reroll or draw twice',async()=>{
+  const x=await setup(),players=[];for(const name of ['A','B','C'])players.push(await x.enter(name,'special-security','test',crypto.randomUUID(),'special'));
+  for(const p of players)await x.action(p,{type:'ready',round:0});
+  const row=x.db.prepare('SELECT payload FROM relay_rooms WHERE name=?').get(players[0].key),data=JSON.parse(row.payload),s=data.saved.state;
+  const cards=[...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)];const pick=(color,value)=>{const i=cards.findIndex(c=>c.color===color&&c.value===value);assert.ok(i>=0);return cards.splice(i,1)[0];};
+  s.players[0].hand=[pick('red','spy'),pick('red','5'),pick('blue','9')];s.players[1].hand=[pick('red','bomb'),pick('green','5'),pick('blue','3')];s.players[2].hand=cards.splice(0,7);s.pile=[pick('red','7')];s.deck=cards;s.color='red';s.turn=0;data.saved.revision++;data.cursor++;
+  x.db.prepare('UPDATE relay_rooms SET payload=?,version=version+1 WHERE name=?').run(JSON.stringify(data),players[0].key);
+  const read=p=>x.call('state',{key:p.key,token:p.token});
+  const host=await read(players[0]);const seen=await x.action({...host,token:players[0].token},{type:'play',cardId:host.state.players[0].hand[0].id,target:1,uno:true});
+  assert.equal(seen.state.revealed.length,1);assert.equal(seen.state.revealed[0].player,1);assert.equal(seen.state.players[1].hand,undefined);assert.equal(seen.state.insights,undefined);
+  for(const p of players.slice(1))assert.deepEqual((await read(p)).state.revealed,[]);
+  const b=await read(players[1]),id=crypto.randomUUID(),command={type:'play',cardId:b.state.players[1].hand[0].id,uno:true};
+  const bomb=await x.action({...b,token:players[1].token},command,id),retry=await x.action({...b,token:players[1].token},command,id);
+  assert.ok(bomb.state.pendingDraw.count>=1&&bomb.state.pendingDraw.count<=3);assert.equal(bomb.state.players[2].count,7);assert.deepEqual(retry.state.pendingDraw,bomb.state.pendingDraw);assert.equal(retry.version,bomb.version);
+  const victim=await read(players[2]),acceptId=crypto.randomUUID(),draw=await x.action({...victim,token:players[2].token},{type:'draw'},acceptId),again=await x.action({...victim,token:players[2].token},{type:'draw'},acceptId);
+  assert.equal(draw.state.players[2].count,7+bomb.state.pendingDraw.count);assert.equal(again.state.players[2].count,draw.state.players[2].count);
+});
+
+test('special HTTPS games complete with two, three and six players, conserving every card',async()=>{
+  for(const count of [2,3,6]){
+    const x=await setup(),players=[];for(let i=0;i<count;i++)players.push(await x.enter('P'+i,'special-complete','test',crypto.randomUUID(),'special'));
+    for(const p of players)await x.action(p,{type:'ready',round:0});let packet=await x.call('state',{key:players[0].key,token:players[0].token}),steps=0;
+    while(packet.state.phase==='playing'&&steps++<5000){const p=players[packet.state.turn];packet=await x.call('state',{key:p.key,token:p.token});packet=await x.action({...packet,token:p.token},botCommand(packet.state,packet.state.me));assert.equal(packet.status,200);const s=JSON.parse(x.db.prepare('SELECT payload FROM relay_rooms').get().payload).saved.state;assert.equal([...s.deck,...s.pile,...s.players.flatMap(p=>p.hand)].length,130);}
+    assert.equal(packet.state.phase,'finished');assert.equal(packet.state.players.reduce((n,p)=>n+p.wins,0),1);
+  }
 });
 
 test('six HTTPS players remain in the lobby until everyone is ready; a seventh cannot join',async()=>{

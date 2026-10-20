@@ -6,9 +6,10 @@ export const UNO_DURATION = 2500;
 export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry', 'seal-scream', 'seal-kiss', 'seal-sulk', 'seal-smug'];
 
 export class RoomAuthority {
-  constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online'} = {}) {
+  constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online',rules='classic'} = {}) {
     this.now = now;
-    this.state = saved?.state ?? newRoom(room, newPlayer(name, token),{capacity,mode});
+    this.state = saved?.state ?? newRoom(room, newPlayer(name, token),{capacity,mode,rules});
+    this.state.rules??='classic';this.state.insights??=[];
     if(this.state.round>0)this.state.roundId??=crypto.randomUUID();
     this.revision = saved?.revision ?? 0;
     this.lastActive = saved?.lastActive ?? now();

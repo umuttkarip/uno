@@ -1,7 +1,8 @@
 export const COLORS = ['red', 'yellow', 'green', 'blue'];
 export const COLOR_NAMES = {red:'Kırmızı',yellow:'Sarı',green:'Yeşil',blue:'Mavi',wild:'Joker'};
-export const LABELS = {skip:'Pas',reverse:'Yön değiştir',draw2:'+2',wild:'Renk değiştir',wild4:'+4'};
-export function deck() {
+export const LABELS = {skip:'Pas',reverse:'Yön değiştir',draw2:'+2',wild:'Renk değiştir',wild4:'+4',spy:'Gözcü',bomb:'Bomba',shield:'Kalkan',swap:'Takas',reflect:'Yansıtma',gift:'Hediye',rotate:'El döndürme'};
+export const SPECIAL_VALUES=['spy','bomb','shield','swap','reflect','gift','rotate'];
+export function deck(rules='classic') {
   let id = 0; const cards = [];
   for (const color of COLORS) {
     cards.push({id:String(id++),color,value:'0'});
@@ -9,6 +10,10 @@ export function deck() {
       for (let i=0;i<2;i++) cards.push({id:String(id++),color,value});
   }
   for (const value of ['wild','wild4']) for(let i=0;i<4;i++) cards.push({id:String(id++),color:'wild',value});
+  if(rules==='special'){
+    for(const value of ['spy','bomb','gift'])for(const color of COLORS)cards.push({id:String(id++),color,value});
+    for(const value of ['shield','swap','reflect','rotate'])for(let i=0;i<(value==='shield'?4:2);i++)cards.push({id:String(id++),color:'wild',value});
+  }
   return shuffle(cards);
 }
 export function shuffle(cards) {
@@ -24,7 +29,7 @@ export function validName(name, type='player') {
   return n;
 }
 export function newPlayer(name,token) {return {name:validName(name),token,hand:[],score:0,wins:0,seen:Date.now(),ready:false,uno:false};}
-export function newRoom(name, player, {capacity=2,mode='online'}={}) {return {name:validName(name,'room'),capacity:mode==='group'?6:[2,3,4,5,6].includes(capacity)?capacity:2,mode,players:[player],phase:'waiting',round:0,turn:0,direction:1,drawnId:null,pendingDraw:null,finishOrder:[],deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,unoDeadline:null,winner:null,lastMove:null,lastUnoPenalty:null,lastUnoCall:null};}
+export function newRoom(name, player, {capacity=2,mode='online',rules='classic'}={}) {return {name:validName(name,'room'),capacity:mode==='group'?6:[2,3,4,5,6].includes(capacity)?capacity:2,mode,rules:rules==='special'?'special':'classic',insights:[],players:[player],phase:'waiting',round:0,turn:0,direction:1,drawnId:null,pendingDraw:null,finishOrder:[],deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,unoDeadline:null,winner:null,lastMove:null,lastUnoPenalty:null,lastUnoCall:null};}
 export function nextPlayer(s,index=s.turn,steps=1) {const n=s.players.length;return ((index+(s.direction??1)*steps)%n+n)%n;}
 function log(s,text) {s.log.unshift({id:++s.seq,text,time:Date.now()});s.log=s.log.slice(0,12);}
 function take(s,n) {
@@ -37,19 +42,23 @@ function take(s,n) {
 }
 export function startRound(s) {
   if(s.players.length<2||s.players.length>(s.capacity??2)||(s.mode!=='group'&&s.players.length!==(s.capacity??2))) throw new Error('Diğer oyuncular bekleniyor.');
-  s.deck=deck();s.pile=[];s.round++;s.roundId=crypto.randomUUID();s.phase='playing';s.turn=(s.round-1)%s.players.length;s.direction=1;s.color=null;s.winner=null;s.vulnerable=null;s.unoDeadline=null;s.drawnId=null;s.pendingDraw=null;s.finishOrder=[];s.lastUnoPenalty=null;s.lastUnoCall=null;
+  s.deck=deck(s.rules);s.pile=[];s.round++;s.roundId=crypto.randomUUID();s.phase='playing';s.turn=(s.round-1)%s.players.length;s.direction=1;s.color=null;s.winner=null;s.vulnerable=null;s.unoDeadline=null;s.drawnId=null;s.pendingDraw=null;s.finishOrder=[];s.insights=[];s.lastUnoPenalty=null;s.lastUnoCall=null;
   for(const p of s.players) {p.hand=take(s,7);p.ready=false;p.uno=false;}
   let first=s.deck.findIndex(c=>/^\d$/.test(c.value));s.pile=[s.deck.splice(first,1)[0]];s.color=s.pile[0].color;
   log(s,`${s.round}. el başladı. İlk sıra ${s.players[s.turn].name} adlı oyuncuda.`);
 }
 export function playable(s,index,c) {
   if(s.phase!=='playing' || s.turn!==index || !c || (s.drawnId && s.drawnId!==c.id)) return false;
+  if(SPECIAL_VALUES.includes(c.value)&&s.rules!=='special')return false;
   // House rule: a pending penalty can be matched or raised, never lowered.
-  if(s.pendingDraw)return c.value==='wild4'||(c.value==='draw2'&&s.pendingDraw.value==='draw2');
+  if(s.pendingDraw)return c.value==='wild4'||(c.value==='draw2'&&s.pendingDraw.value==='draw2')||s.rules==='special'&&['shield','reflect'].includes(c.value);
   const top=s.pile?.at(-1)??s.top;
   return c.color==='wild' || c.color===s.color || c.value===top.value;
 }
 export function points(c) {return c.color==='wild'?50:/^\d$/.test(c.value)?Number(c.value):20;}
+function randomIndex(length){const bytes=new Uint32Array(1),limit=Math.floor(4294967296/length)*length;do{crypto.getRandomValues(bytes);}while(bytes[0]>=limit);return bytes[0]%length;}
+export function needsTarget(c,handCount){return handCount>1&&['spy','swap','gift'].includes(c.value);}
+export function needsColor(c,pendingDraw){return c.color==='wild'&&!(pendingDraw&&['shield','reflect'].includes(c.value));}
 function finishRound(s,index) {
   s.phase='finished';s.winner=index;const p=s.players[index];
   const gain=s.players.reduce((total,other,i)=>total+(i===index?0:other.hand.reduce((n,c)=>n+points(c),0)),0);p.score+=gain;p.wins++;s.roundPoints=gain;s.vulnerable=null;s.unoDeadline=null;
@@ -112,17 +121,35 @@ export function act(s,index,a) {
   if(a.type!=='play') throw new Error('Geçersiz hamle.');
   const i=p.hand.findIndex(x=>x.id===a.cardId), c=p.hand[i];
   if(i<0 || !playable(s,index,c)) throw new Error('Bu kartı oynayamazsın. Aynı renk veya sembolü seç.');
-  if(c.color==='wild' && !COLORS.includes(a.color)) throw new Error('Bir renk seçmelisin.');
-  penalizeUno(s);p.hand.splice(i,1);s.pile.push(c);s.color=c.color==='wild'?a.color:c.color;s.drawnId=null;p.uno=false;
+  if(needsColor(c,s.pendingDraw) && !COLORS.includes(a.color)) throw new Error('Bir renk seçmelisin.');
+  if(needsTarget(c,p.hand.length)&&(!Number.isInteger(a.target)||a.target===index||!s.players[a.target]?.hand.length))throw new Error('Bir oyuncu seçmelisin.');
+  if(c.value==='gift'&&p.hand.length>1&&(!p.hand.some(x=>x.id===a.giftId)||a.giftId===c.id))throw new Error('Vereceğin kartı seçmelisin.');
+  const previousColor=s.color,pending=s.pendingDraw;
+  penalizeUno(s);p.hand.splice(i,1);s.pile.push(c);s.color=c.color==='wild'?(needsColor(c,pending)?a.color:previousColor):c.color;s.drawnId=null;p.uno=false;
   log(s,`${p.name}, ${c.color==='wild'?'joker':COLOR_NAMES[c.color].toLocaleLowerCase('tr-TR')} ${LABELS[c.value]??c.value} oynadı.${c.color==='wild'?' Yeni renk: '+COLOR_NAMES[s.color]+'.':''}`);
   if(c.value==='reverse')s.direction=-(s.direction??1);
   s.turn=nextPlayer(s,index);
   if(c.value==='skip')s.turn=nextPlayer(s,index,2);
   if(c.value==='reverse'&&s.players.length===2)s.turn=index;
-  if(c.value==='draw2'||c.value==='wild4') {
-    s.pendingDraw={count:(s.pendingDraw?.count??0)+(c.value==='draw2'?2:4),value:c.value};
+  if(c.value==='draw2'||c.value==='wild4'||c.value==='bomb') {
+    s.pendingDraw={count:(s.pendingDraw?.count??0)+(c.value==='bomb'?randomIndex(3)+1:c.value==='draw2'?2:4),value:c.value,...(s.rules==='special'?{source:index}:{})};
   }
   s.lastMove={type:'play',player:index,card:c.id,seq:s.seq};
+  if(SPECIAL_VALUES.includes(c.value)){
+    s.lastMove.effect=c.value;
+    if(c.value==='reflect'&&pending){const source=Number.isInteger(pending.source)&&pending.source!==index?pending.source:nextPlayer(s,index,-1);s.turn=source;}
+    if(p.hand.length&&needsTarget(c,p.hand.length+1)){
+      const target=s.players[a.target];s.lastMove.target=a.target;
+      if(c.value==='spy'){const seen=target.hand[randomIndex(target.hand.length)];s.insights??=[];if(!s.insights.some(x=>x.viewer===index&&x.cardId===seen.id))s.insights.push({viewer:index,cardId:seen.id});}
+      if(c.value==='swap'){[p.hand,target.hand]=[target.hand,p.hand];target.uno=false;}
+      if(c.value==='gift'){const at=p.hand.findIndex(x=>x.id===a.giftId);target.hand.push(p.hand.splice(at,1)[0]);target.uno=false;}
+    }
+    if(c.value==='rotate'&&p.hand.length){const hands=s.players.map(x=>x.hand);for(let owner=0;owner<s.players.length;owner++){const receiver=nextPlayer(s,owner);s.players[receiver].hand=hands[owner];s.players[receiver].uno=false;}}
+    s.finishOrder=(s.finishOrder??[]).filter(owner=>!s.players[owner].hand.length);
+  }
+  // A tracked card follows its identity through swaps, gifts and rotations.
+  // Once discarded it stops being visible even if the deck later recycles it.
+  s.insights=(s.insights??[]).filter(x=>s.players.some(owner=>owner.hand.some(card=>card.id===x.cardId)));
   if(p.hand.length===1) {
     p.uno=a.uno===true;
     if(p.uno){log(s,`${p.name}: UNO!`);s.lastUnoCall={player:index,seq:s.seq};}else if(s.turn!==index)s.vulnerable=index;
@@ -131,7 +158,8 @@ export function act(s,index,a) {
   if(!p.hand.length&&!s.pendingDraw)finishRound(s,index);
 }
 export function view(s,index) {
-  return {...s,log:undefined,deck:undefined,pile:undefined,top:s.pile.at(-1)??null,deckCount:s.deck.length,me:index,
+  const revealed=(s.insights??[]).filter(x=>x.viewer===index).flatMap(x=>s.players.flatMap((owner,player)=>{const position=owner.hand.findIndex(c=>c.id===x.cardId);return position<0||player===index?[]:[{player,position,card:{...owner.hand[position]}}];}));
+  return {...s,insights:undefined,revealed,log:undefined,deck:undefined,pile:undefined,top:s.pile.at(-1)??null,deckCount:s.deck.length,me:index,
     players:s.players.map((p,i)=>({name:p.name,score:p.score,wins:p.wins,ready:p.ready,uno:p.uno,bot:!!p.bot,online:p.online!==false,count:p.hand.length,...(i===index?{hand:p.hand}:{})})),
     playable:s.players[index].hand.filter(c=>playable(s,index,c)).map(c=>c.id)};
 }

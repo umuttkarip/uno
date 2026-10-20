@@ -1,3 +1,4 @@
+import {isSpecial,specialNames,specialCorner,specialSceneIndex} from './special-cards.js';
 export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:'seal',name:'Sude'},{id:'kuromi',name:'Kuromi'},{id:'adventure',name:'Adventure Time'},{id:'minecraft',name:'Minecraft'}];
 let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
@@ -5,6 +6,7 @@ export const getDeckTheme=()=>current;
 const atlasFile=(theme,sheet)=>`./assets/cards/${theme==='minecraft'?'minecraft-art':theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
 export const deckCoverFile=id=>`./assets/cards/${id==='minecraft'?'minecraft-back-cover':id+'-cover'}.webp`;
 export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(id==='minecraft'?['a','b','c','d','e'].map(sheet=>atlasFile(id,sheet)):id==='adventure'?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
+export const specialDeckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:[`./assets/cards/${id}-special.webp`];
 export const FEATURED_SCENES={minecraft:{axolotl:[6,64,65,66]},adventure:{marceline:[4,19,46,57,59]}};
 // Spread the four axolotl scenes through the pool so every color includes one.
 const minecraftNumbers=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,64,22,23,24,25,26,27,28,29,30,31,65,32,33,34,35,36,37,38,39,61,62,66,63];
@@ -47,8 +49,10 @@ function art(theme,index,{preview=false,x=0,y=42,size=108}={}){
   // The square viewport cuts only the atlas cell. It draws no panel or frame.
   return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${column*100} ${row*100} 100 100" preserveAspectRatio="xMidYMid meet"><image href="${atlasFile(theme,sheet)}" x="0" y="0" width="400" height="400"/></svg>`;
 }
+function specialArtwork(theme,c,{x=-3,y=29,size=112}={}){const index=specialSceneIndex(c);return `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="width:${size}%;height:${size/1.5}%;overflow:hidden" viewBox="${index%4*100} ${Math.floor(index/4)*100} 100 100"><image href="./assets/cards/${theme}-special.webp" width="400" height="200"/></svg>`;}
 const palette=[colors.red,colors.yellow,colors.green,colors.blue];
 function glyph(value,fill,ink='none',weight=.8){
+  if(specialNames[value])return specialCorner(value,fill,ink);
   if(value==='wild')return `<g transform="translate(6 7) rotate(-12 12 12)" stroke="#fff9ed" stroke-width="1.1">${palette.map((color,i)=>`<path d="M${i%2*12} ${Math.floor(i/2)*12}h12v12H${i%2*12}Z" fill="${color}"/>`).join('')}</g>`;
   if(value==='skip')return `<g transform="translate(18 20)" fill="none" stroke="${ink}" stroke-width="5.2"><circle r="10"/><path d="m-7 7 14-14"/></g><g transform="translate(18 20)" fill="none" stroke="${fill}" stroke-width="3.4"><circle r="10"/><path d="m-7 7 14-14"/></g>`;
   if(value==='reverse')return `<g transform="translate(7 5) rotate(-12 12 15)" fill="${fill}" stroke="${ink}" stroke-width="${weight}" stroke-linejoin="round"><path d="M0 5h15V1l9 7-9 7v-4H0Zm24 15H9v-4l-9 7 9 7v-4h15Z"/></g>`;
@@ -98,7 +102,7 @@ export function themedFace(c,back,theme,{preview=false}={}){
   const prints={cats:catPrint,seal:sealPrint,kuromi:kuromiPrint,adventure:adventurePrint};
   const wideCats=new Set([0,1,7,12,15,18,19,20,21,23,26,27,30]);
   const placement=theme==='cats'?{x:index===24?-4:wideCats.has(index)?-7:2,y:index===24?24:wideCats.has(index)?34:30,size:index===24?121:114}:theme==='seal'?{x:1,y:40,size:108}:theme==='kuromi'?{x:8,y:43,size:105}:{x:-1,y:43,size:110};
-  const face=back?backPrint(theme,preview):`${prints[theme](color,wild,index)}${watermark(c,color,theme)}${art(theme,index,placement)}`;
+  const face=back?backPrint(theme,preview):`${prints[theme](color,wild,index)}${isSpecial(c)?specialArtwork(theme,c):watermark(c,color,theme)+art(theme,index,placement)}`;
   const ink=f.ink;
   const cornerFill=c.color==='yellow'?'#30252b':f.paper;
   const corners=back?'':`<g transform="translate(1 0)">${glyph(c.value,cornerFill,ink,theme==='seal'?1.4:1.2)}</g>`;
@@ -122,7 +126,7 @@ function minecraftFace(c,back,preview){
     print='<rect width="100" height="150" fill="#122e37"/><path d="M-4 81h13v-7h14v-7h14v-7h14v-7h14v-7h14v-7h25v67H91v7H77v7H63v7H49v7H35v7H-4Z" fill="#f5edcf"/><path d="M8 30h7v7H8m77 79h7v7h-7M19 25h4v4h-4m58 100h4v4h-4" fill="#8ab78d"/>'+minecraftArtwork(67,{x:0,y:31,size:100,preview})+'<text x="49" y="25" text-anchor="middle" fill="#fff7e3" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="900" font-style="italic" letter-spacing="-.9">UNO</text>'+palette.map((fill,i)=>`<path d="M${32+i*10} 138h7v4h-7Z" fill="${fill}"/>`).join('');
   }else{
     const index=sceneIndex(c,false,'minecraft'),special=['skip','reverse','draw2','wild','wild4'].includes(c.value);
-    print=minecraftPrint(color,wild)+minecraftArtwork(index,{x:special?-4:0,y:special?27:35,size:special?112:106});
+    print=minecraftPrint(color,wild)+(isSpecial(c)?specialArtwork('minecraft',c):minecraftArtwork(index,{x:special?-4:0,y:special?27:35,size:special?112:106}));
     const corner=glyph(c.value,c.color==='yellow'?ink:paper,ink,.65);
     print+=corner+`<g transform="rotate(180 50 75)">${corner}</g>`;
   }

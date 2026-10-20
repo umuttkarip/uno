@@ -27,6 +27,7 @@ export async function relayApi(request,env,{now=Date.now,pause=sleep}={}){
     let key=body.key??url.searchParams.get('key'),name;
     if(entering){
       name=validName(body.name);validName(body.room,'room');
+      if(body.rules!==undefined&&!['classic','special'].includes(body.rules))throw problem('Geçersiz oyun modu.');
       const scope=body.scope==='test'?'test':body.scope==='main'?'main':null;if(!scope)throw problem('Masa bulunamadı.');
       const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(roomKey(body.room)));
       key=scope+':'+Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('');
@@ -37,7 +38,7 @@ export async function relayApi(request,env,{now=Date.now,pause=sleep}={}){
     const wait=polling?Math.min(20000,Math.max(0,Number(url.searchParams.get('wait'))||0)):0;
     const start=Date.now();
     do{
-      const result=await transact(env.DB,key,{now,token,create:entering?{name,room:body.room}:null,run:(a,data,index)=>{
+      const result=await transact(env.DB,key,{now,token,create:entering?{name,room:body.room,rules:body.rules}:null,run:(a,data,index)=>{
         if(entering){if(a.state.players[index].name!==name)throw problem('Oyuncu adı değişmiş.',403);a.touch();return;}
         if(polling)return;
         if(path.endsWith('/leave')){
@@ -81,7 +82,7 @@ async function transact(db,key,{now,token,create,run}){
     let data,a,fresh=!row;
     if(fresh){
       if(!create)throw problem('Masa kapandı.',410);
-      a=new RoomAuthority(create.room,create.name,token,{now,mode:'group'});a.state.players[0].seen=now();
+      a=new RoomAuthority(create.room,create.name,token,{now,mode:'group',rules:create.rules});a.state.players[0].seen=now();
       data={saved:a.checkpoint(),cursor:0,events:[],eventSeq:0,receipts:[]};
     }else{
       data=JSON.parse(row.payload);a=new RoomAuthority('', '', '', {now,saved:data.saved});

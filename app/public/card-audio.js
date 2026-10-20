@@ -1,4 +1,5 @@
 let context;
+let bombNoise;
 let warmed=false;
 const buffers=new Map();
 const samples={draw:['card-slide-1','card-slide-2','card-slide-3'],play:['card-place-1','card-place-2','card-place-3']};
@@ -42,4 +43,13 @@ export function cardSound(type='play',delay=0,volume=1) {
     source.start(Math.max(context.currentTime,requestedAt));
     source.onended=()=>{source.disconnect();gain.disconnect();};
   });
+}
+
+export function bombSound(delay=0){
+  if(!context||context.state!=='running')return;
+  if(!bombNoise){bombNoise=context.createBuffer(1,Math.ceil(context.sampleRate*.18),context.sampleRate);const data=bombNoise.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*(1-i/data.length)**2;}
+  const when=context.currentTime+delay/1000,source=context.createBufferSource(),filter=context.createBiquadFilter(),gain=context.createGain(),tone=context.createOscillator(),thump=context.createGain();
+  source.buffer=bombNoise;filter.type='lowpass';filter.frequency.value=720;gain.gain.value=.17;source.connect(filter);filter.connect(gain);gain.connect(context.destination);source.start(when);
+  tone.frequency.setValueAtTime(105,when);tone.frequency.exponentialRampToValueAtTime(42,when+.16);thump.gain.setValueAtTime(.12,when);thump.gain.exponentialRampToValueAtTime(.001,when+.18);tone.connect(thump);thump.connect(context.destination);tone.start(when);tone.stop(when+.19);
+  source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};tone.onended=()=>{tone.disconnect();thump.disconnect();};
 }
