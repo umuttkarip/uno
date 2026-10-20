@@ -1,5 +1,6 @@
 import {DECKS,setDeckTheme,deckFiles} from './card-themes.js';
 import {face} from './cards.js';
+import {APPEARANCE_POLICY} from './release-policy.js';
 export const TABLES=[
   {id:'green',name:'Yeşil',felt:'#10362c',glow:'#24624460',panel:'#16382e',deep:'#0d2e25'},
   {id:'wine',name:'Bordo',felt:'#48232d',glow:'#81404c50',panel:'#4a2934',deep:'#321b24'},
@@ -17,7 +18,13 @@ function loadDeck(id){
   loaded.set(id,job);job.catch(()=>loaded.delete(id));return job;
 }
 export function mountAppearance({onDeckChange,onError}){
-  const $=id=>document.getElementById(id),panel=$('appearance-panel');let look=readAppearance(),built=false,loading=false,busy=false,previewDeck;
+  const $=id=>document.getElementById(id);
+  if(!APPEARANCE_POLICY.tables&&!APPEARANCE_POLICY.cards){$('appearance-toggle').hidden=true;setDeckTheme('classic');return {ensureDeck:()=>Promise.resolve(),setBusy:()=>{}};}
+  $('appearance-toggle').hidden=false;
+  const panel=$('appearance-panel');let look=readAppearance(),built=false,loading=false,busy=false,previewDeck;
+  if(!APPEARANCE_POLICY.tables)look.table='green';
+  if(!APPEARANCE_POLICY.cards)look.deck='classic';
+  $('table-options').hidden=!APPEARANCE_POLICY.tables;$('deck-options').hidden=!APPEARANCE_POLICY.cards;$('appearance-preview').hidden=!APPEARANCE_POLICY.cards;
   const table=()=>{const t=TABLES.find(t=>t.id===look.table);document.body.dataset.table=t.id;for(const name of ['felt','glow','panel','deep'])document.body.style.setProperty('--'+({glow:'felt-glow',deep:'table-deep'}[name]??name),t[name]);};
   const refresh=()=>{for(const b of panel.querySelectorAll('button[data-table]'))b.setAttribute('aria-pressed',String(b.dataset.table===look.table));for(const b of panel.querySelectorAll('button[data-deck]')){b.setAttribute('aria-pressed',String(b.dataset.deck===look.deck));b.disabled=loading||busy;}if(built&&previewDeck!==look.deck){previewDeck=look.deck;$('appearance-preview').innerHTML=[{id:'3',color:'red',value:'7'},{id:'24',color:'blue',value:'skip'},{id:'104',color:'wild',value:'wild4'}].map(c=>`<span class="sample-card">${face(c)}</span>`).join('');}};
   const open=value=>{panel.hidden=!value;$('appearance-toggle').setAttribute('aria-expanded',String(value));if(value&&!built){built=true;$('table-options').innerHTML=TABLES.map(t=>`<button type="button" data-table="${t.id}" aria-label="${t.name}" title="${t.name}" style="--swatch:${t.felt}"></button>`).join('');$('deck-options').innerHTML=DECKS.map(d=>`<button type="button" data-deck="${d.id}"><span class="deck-sample">${face({color:'wild'},true,d.id,{preview:true})}</span><span>${d.name}</span></button>`).join('');refresh();}if(value)void loadDeck(look.deck).then(refresh).catch(e=>onError(e.message));};
