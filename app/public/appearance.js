@@ -8,10 +8,11 @@ export const TABLES=[
   {id:'navy',name:'Lacivert',felt:'#182e46',glow:'#3f648a55',panel:'#20364e',deep:'#132438'},
   {id:'charcoal',name:'Antrasit',felt:'#292b2c',glow:'#565b6040',panel:'#323638',deep:'#202426'},
   {id:'mauve',name:'Leylak',felt:'#40334c',glow:'#80658c50',panel:'#483c54',deep:'#30273b'},
-  {id:'rose',name:'Gülkurusu',felt:'#583a42',glow:'#a26c7350',panel:'#5c4048',deep:'#412c34'}
+  {id:'rose',name:'Gülkurusu',felt:'#583a42',glow:'#a26c7350',panel:'#5c4048',deep:'#412c34'},
+  {id:'minecraft',name:'Minecraft',felt:'#152b20',glow:'#223b2900',panel:'#1b3025',deep:'#10251b'}
 ];
-export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem(storageKey('uno-look-v1')));return {table:TABLES.some(t=>t.id===data?.table)?data.table:'green',deck:DECKS.some(d=>d.id===data?.deck)?data.deck:'classic'};}catch{return {table:'green',deck:'classic'};}}
-export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem(storageKey('uno-look-v1'),JSON.stringify(look));}catch{}}
+export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem(storageKey('uno-look-v1')));return {table:data?.version!==2&&data?.deck==='minecraft'?'minecraft':TABLES.some(t=>t.id===data?.table)?data.table:'green',deck:DECKS.some(d=>d.id===data?.deck)?data.deck:'classic'};}catch{return {table:'green',deck:'classic'};}}
+export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem(storageKey('uno-look-v1'),JSON.stringify({...look,version:2}));}catch{}}
 const loaded=new Map();
 function loadDeck(id){
   if(loaded.has(id))return loaded.get(id);
@@ -33,10 +34,10 @@ export function mountAppearance({onDeckChange,onError}){
   panel.addEventListener('click',async event=>{
     const swatch=event.target.closest('button[data-table]'),deck=event.target.closest('button[data-deck]');
     if(swatch){look.table=swatch.dataset.table;table();saveAppearance(look);refresh();}
-    if(deck&&!loading&&!busy){loading=true;refresh();try{await loadDeck(deck.dataset.deck);look.deck=deck.dataset.deck;setDeckTheme(look.deck);saveAppearance(look);onDeckChange();}catch(error){onError(error.message);}finally{loading=false;refresh();}}
+    if(deck&&!loading&&!busy){loading=true;refresh();try{await loadDeck(deck.dataset.deck);look.deck=deck.dataset.deck;if(look.deck==='minecraft'&&APPEARANCE_POLICY.tables){look.table='minecraft';table();}setDeckTheme(look.deck);saveAppearance(look);onDeckChange();}catch(error){onError(error.message);}finally{loading=false;refresh();}}
   });
   document.addEventListener('pointerdown',event=>{if(!panel.hidden&&!panel.contains(event.target)&&!$('appearance-toggle').contains(event.target))open(false);});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')open(false);});
-  table();setDeckTheme(look.deck);
+  table();setDeckTheme(look.deck);saveAppearance(look);
   return {ensureDeck:()=>loadDeck(look.deck),setBusy:value=>{if(busy===value)return;busy=value;if(built)refresh();}};
 }

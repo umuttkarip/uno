@@ -2,7 +2,7 @@ export const DECKS=[{id:'classic',name:'Klasik'},{id:'cats',name:'Kediler'},{id:
 let current='classic';
 export function setDeckTheme(id){current=DECKS.some(d=>d.id===id)?id:'classic';return current;}
 export const getDeckTheme=()=>current;
-const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':''}`;
+const atlasFile=(theme,sheet)=>`./assets/cards/${theme}-${sheet}.webp${theme==='cats'&&sheet==='b'?'?v=3':theme==='minecraft'&&sheet==='b'?'?v=2':''}`;
 export const deckFiles=id=>id==='classic'||!DECKS.some(d=>d.id===id)?[]:(id==='minecraft'?['a','b','c','d'].map(sheet=>atlasFile(id,sheet)):[atlasFile(id,'a'),atlasFile(id,'b'),...(id==='kuromi'?[atlasFile(id,'c')]:[])]);
 const colors={red:'#d90b28',yellow:'#f5c400',green:'#00954c',blue:'#086bdb',wild:'#22202a'};
 const family={cats:{paper:'#fff7e7',ink:'#342b28'},seal:{paper:'#fffefa',ink:'#211e24'},kuromi:{paper:'#ffeaf7',ink:'#291b30'},adventure:{paper:'#fff9df',ink:'#172c32'}};
@@ -109,13 +109,15 @@ function minecraftArtwork(index,preview=false){
   return `<svg width="100" height="150" style="width:100%;height:100%;overflow:hidden" viewBox="${column*100} ${row*150} 100 150"><image href="${atlasFile('minecraft',sheet)}" width="400" height="600" preserveAspectRatio="none"/></svg>`;
 }
 function minecraftFace(c,back,preview){
-  const index=sceneIndex(c,back,'minecraft'),color=colors[c.color]??'#10191e';let print=minecraftArtwork(index,back&&preview);
-  if(back){print+=`<g transform="rotate(-16 50 75)"><path d="M12 52h76v6h5v36h-6v5H12v-5H7V58h5Z" fill="#c71330" stroke="#fff5d8" stroke-width="2.5"/><g transform="translate(20 63)">${pixelWord('UNO','#ffdf62',3.5)}</g></g>`;}
-  else{
-    const stair='M0 0H72v5h-6v6h-6v6h-6v6h-6v6h-6v6h-6v6h-6v6h-6v6h-6v6h-6v6H6v6H0Z';
-    const mark=/^\d$/.test(c.value)?`<g transform="translate(8 8)">${pixelWord(c.value,'#fff7dc',3.8)}</g>`:['draw2','wild4'].includes(c.value)?`<g transform="translate(7 11)">${pixelWord(c.value==='draw2'?'+2':'+4','#fff7dc',2.65)}</g>`:glyph(c.value,'#fff7dc','#101c1d',2);
-    const corner=`<path d="${stair}" fill="${color}" fill-opacity=".94"/><path d="M7 66h6v-6h6v-6h6v-6h6v-6h6v-6h6v-6h6v-6h6v-6h6v-6h6" fill="none" stroke="${c.color==='wild'?'#a269df':'#fff8e1'}" stroke-width="1.1" opacity=".7"/>${mark}`;
-    print+=corner+`<g transform="rotate(180 50 75)">${corner}</g>`;
+  const index=sceneIndex(c,back,'minecraft'),wild=back||c.color==='wild',color=wild?'#201a36':colors[c.color],id='mc-print-'+(back?'back':c.color);
+  const wash=`<defs><linearGradient id="${id}-wash" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${color}"/><stop offset=".12" stop-color="${color}" stop-opacity=".86"/><stop offset=".36" stop-color="${color}" stop-opacity="0"/><stop offset=".65" stop-color="${color}" stop-opacity="0"/><stop offset=".89" stop-color="${color}" stop-opacity=".72"/><stop offset="1" stop-color="${color}"/></linearGradient><linearGradient id="${id}-light" x2="1" y2="1"><stop stop-color="#fff7dc" stop-opacity=".8"/><stop offset=".4" stop-color="#fff7dc" stop-opacity=".14"/><stop offset="1" stop-color="#fff7dc" stop-opacity=".5"/></linearGradient></defs>`;
+  let print=wash+minecraftArtwork(index,back&&preview)+`<rect width="100" height="150" fill="url(#${id}-wash)"/>`;
+  if(back){
+    print+=`<path d="M9 46Q50 38 91 46v58Q50 112 9 104Z" fill="#181728" opacity=".72"/><path d="M15 49h7m56 0h7M15 101h7m56 0h7" stroke="#c7b8d7" stroke-width="1.2"/><g transform="translate(22 61)">${pixelWord('UNO','#fff5da',3.3)}</g>${palette.map((fill,i)=>`<path d="m${35+i*9} 92 3.3-3.3 3.3 3.3-3.3 3.3Z" fill="${fill}" stroke="#fff5da" stroke-width=".5"/>`).join('')}`;
+  }else{
+    const mark=/^\d$/.test(c.value)?`<g transform="translate(8 7)">${pixelWord(c.value,'#fff9e8',3.35)}${['6','9'].includes(c.value)?'<path d="M0 26h17" stroke="#fff9e8" stroke-width="1.8"/>':''}</g>`:['draw2','wild4'].includes(c.value)?`<g transform="translate(8 9)">${pixelWord(c.value==='draw2'?'+2':'+4','#fff9e8',2.45)}</g>`:`<g transform="translate(1 -1) scale(.9)">${glyph(c.value,'#fff9e8','#152019',1.4)}</g>`;
+    print+=mark+`<g transform="rotate(180 50 75)">${mark}</g>`;
+    if(c.value==='wild4')print+=palette.map((fill,i)=>`<path d="M${77+i%2*7} ${9+Math.floor(i/2)*7}h6v6h-6Z" fill="${fill}" stroke="#fff9e8" stroke-width=".6"/>`).join('');
   }
-  return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="minecraft"${back?'':` data-card-value="${c.value}"`} style="overflow:hidden;border-radius:9% / 6%">${print}<rect x="1.7" y="1.7" width="96.6" height="146.6" rx="7.3" fill="none" stroke="#fff5d8" stroke-width="3.4"/><rect x="3.6" y="3.6" width="92.8" height="142.8" rx="5.4" fill="none" stroke="#163022" stroke-width=".65" opacity=".65"/></svg>`;
+  return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="minecraft"${back?'':` data-card-value="${c.value}"`} style="overflow:hidden;border-radius:9% / 6%">${print}<rect x="1.5" y="1.5" width="97" height="147" rx="7.5" fill="none" stroke="#fff4dc" stroke-width="3"/><rect x="3.4" y="3.4" width="93.2" height="143.2" rx="5.5" fill="none" stroke="${back?'#9c8db1':color}" stroke-width="2.2"/><rect x="4.8" y="4.8" width="90.4" height="140.4" rx="4.2" fill="none" stroke="url(#${id}-light)" stroke-width=".6"/></svg>`;
 }

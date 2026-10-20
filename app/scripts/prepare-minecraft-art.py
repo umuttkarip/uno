@@ -8,6 +8,7 @@ SOURCES = ROOT / '.local/card-art-source'
 OUTPUT = ROOT / 'public/assets/cards'
 OUTPUT.mkdir(parents=True, exist_ok=True)
 originals = {sheet: Image.open(SOURCES / ('minecraft-' + sheet + '.png')).convert('RGB') for sheet in 'abcd'}
+corrections = Image.open(SOURCES / 'minecraft-b-v2.png').convert('RGB')
 for cell_width in (112, 96):
     cell_height = cell_width * 3 // 2
     atlases = {}
@@ -15,7 +16,8 @@ for cell_width in (112, 96):
         atlas = Image.new('RGB', (cell_width * 4, cell_height * 4))
         for index in range(16):
             x, y = index % 4, index // 4
-            tile = image.crop((round(x * image.width / 4), round(y * image.height / 4), round((x + 1) * image.width / 4), round((y + 1) * image.height / 4)))
+            source = corrections if sheet == 'b' and index in (11, 13) else image
+            tile = source.crop((round(x * source.width / 4), round(y * source.height / 4), round((x + 1) * source.width / 4), round((y + 1) * source.height / 4)))
             tile = tile.resize((cell_width, cell_height), Image.Resampling.LANCZOS)
             atlas.paste(tile, (x * cell_width, y * cell_height))
             if sheet == 'd' and index == 12:

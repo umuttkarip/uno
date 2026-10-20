@@ -143,6 +143,13 @@ body{background-image:radial-gradient(ellipse at 50% 45%,var(--felt-glow,#246244
 
 /* All expressions and the composer share one compact, non-scrolling surface. */
 .deck-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+.table-options{gap:clamp(7px,2.4vw,14px)}
+.table-options button{width:clamp(26px,7.2vw,32px);height:clamp(26px,7.2vw,32px)}
+.table-options button[data-table="minecraft"]{border-radius:5px;background:linear-gradient(#71a246 0 30%,#42752f 30% 43%,#65442d 43% 66%,#805b3a 66% 82%,#523b2b 82%);box-shadow:inset 5px 0 #ffffff10,inset -5px 0 #0002}
+body[data-table="minecraft"]{background-image:linear-gradient(#081b204d,#0a211814 34%,#07180f40),url('./assets/tables/minecraft-wide.webp');background-size:cover;background-position:center;background-repeat:no-repeat}
+body[data-table="minecraft"]:before{display:none}
+body[data-table="minecraft"] .header,body[data-table="minecraft"] .player-name{text-shadow:0 1px 3px #071a16}
+@media(max-aspect-ratio:3/4){body[data-table="minecraft"]{background-image:linear-gradient(#081b204d,#0a211800 37%,#07180f40),url('./assets/tables/minecraft-portrait.webp')}}
 .chat-panel{--chat-gap:8px;display:grid;grid-template-areas:"heading" "stickers" "emotes" "composer";gap:var(--chat-gap);width:min(344px,calc(100vw - 24px));padding:10px 12px 12px;bottom:calc(66px + var(--chat-keyboard-offset,0px));right:12px;max-height:calc(var(--chat-visible-height,100dvh) - 20px);overflow:hidden;border-radius:13px;background:var(--panel,#16382e);box-shadow:0 10px 30px #031b1440}
 .chat-heading{grid-area:heading;margin:0;padding:0;font-size:12px;min-height:26px}
 .chat-heading .icon-button{width:28px;height:28px;padding:6px}

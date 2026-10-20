@@ -34,6 +34,17 @@ test('appearance preferences validate identifiers and tolerate disabled storage'
   for(const table of TABLES)for(const deck of DECKS){saveAppearance({table:table.id,deck:deck.id},store);assert.deepEqual(readAppearance(store),{table:table.id,deck:deck.id});}
   saved='{"table":"invalid","deck":"<script>"}';assert.deepEqual(readAppearance(store),{table:'green',deck:'classic'});const blocked={getItem(){throw 0;},setItem(){throw 0;}};assert.doesNotThrow(()=>saveAppearance({},blocked));assert.equal(readAppearance(blocked).deck,'classic');
 });
+
+test('existing Minecraft preferences receive the new scene once and later table choices remain personal',()=>{
+  let saved=JSON.stringify({table:'wine',deck:'minecraft'});const store={getItem:()=>saved,setItem:(key,value)=>saved=value};
+  const migrated=readAppearance(store);assert.deepEqual(migrated,{table:'minecraft',deck:'minecraft'});saveAppearance(migrated,store);
+  saveAppearance({table:'green',deck:'minecraft'},store);assert.deepEqual(readAppearance(store),{table:'green',deck:'minecraft'});
+  saved=JSON.stringify({table:'wine',deck:'cats'});assert.deepEqual(readAppearance(store),{table:'wine',deck:'cats'});
+});
+
+test('optional Minecraft backgrounds have separate mobile/desktop files within a small combined budget',async()=>{
+  let total=0;for(const name of ['wide','portrait']){const path=new URL('../public/assets/tables/minecraft-'+name+'.webp',import.meta.url),data=await readFile(path);assert.equal(data.toString('ascii',8,12),'WEBP');total+=data.length;}assert.ok(total<65000,total+' bytes');
+});
 test('each optional illustrated deck stays under 220 KB including its tiny chooser cover',async()=>{
   for(const theme of DECKS.filter(d=>d.id!=='classic')){let bytes=0;for(const file of [...deckFiles(theme.id),`./assets/cards/${theme.id}-cover.webp`]){const path=new URL('../public/'+file.slice(2),import.meta.url),buffer=await readFile(path);assert.equal(buffer.toString('ascii',8,12),'WEBP');bytes+=(await stat(path)).size;}assert.ok(bytes<220000,`${theme.id}: ${bytes}`);}
 });
