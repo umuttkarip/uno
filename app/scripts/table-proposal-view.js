@@ -1,0 +1,15 @@
+import {DECKS} from '../public/card-themes.js';
+import {face} from '../public/cards.js';
+const $=id=>document.getElementById(id),query=new URL(location.href).searchParams;
+let selected=DECKS.some(d=>d.id===query.get('tema'))?query.get('tema'):'cats',overview=query.get('gorunum')==='ozet',phone=query.get('ekran')==='telefon'||query.get('gorunum')==='telefon',cards=true;
+const hands=[{id:'3',color:'red',value:'2'},{id:'29',color:'yellow',value:'7'},{id:'55',color:'green',value:'skip'},{id:'88',color:'blue',value:'4'},{id:'71',color:'green',value:'9'},{id:'17',color:'red',value:'draw2'},{id:'105',color:'wild',value:'wild4'}];
+function mini(c,theme,{back=false,i=0,fan=false}={}){return `<span class="mini-card" style="--r:${(i-3)*(fan?4:3)}deg;--y:${Math.abs(i-3)*.35}cqw">${face(c,back,theme)}</span>`;}
+function scene(theme){return `<section class="scene" data-theme="${theme.id}"><h2>${theme.name}</h2><div class="board ${theme.id==='classic'?'classic':''}" style="${theme.id!=='classic'?`background-image:url('./proposals/backgrounds/${theme.id}.webp');--phone-position:${theme.id==='minecraft'?'100%':'0%'}`:''}"><div class="game-layer"><span class="name rival">Sude</span><div class="fan opponent">${Array.from({length:7},(_,i)=>mini({color:'wild'},theme.id,{back:true,i,fan:true})).join('')}</div><div class="piles">${mini({color:'wild'},theme.id,{back:true})}${mini({id:'44',color:'yellow',value:'6'},theme.id)}</div><span class="name self">Umut</span><div class="fan hand">${hands.map((c,i)=>mini(c,theme.id,{i})).join('')}</div><span class="mark">UNO</span></div></div></section>`;}
+function render(){
+  document.body.dataset.overview=String(overview);$('display').className=(overview?'overview':'single')+(phone?' phone':'')+(cards?'':' cards-hidden');$('display').innerHTML=(overview?DECKS:DECKS.filter(d=>d.id===selected)).map(scene).join('');
+  for(const b of $('themes').querySelectorAll('button'))b.setAttribute('aria-pressed',String(b.dataset.theme===selected));
+  $('desktop').setAttribute('aria-pressed',String(!phone));$('phone').setAttribute('aria-pressed',String(phone));$('cards').setAttribute('aria-pressed',String(cards));$('cards').textContent=cards?'Kartları gizle':'Kartları göster';$('compare').setAttribute('aria-pressed',String(overview));$('compare').textContent=overview?'Tek tek incele':'Tümünü karşılaştır';
+  const url=new URL(location.href);url.searchParams.set('tema',selected);if(overview)url.searchParams.set('gorunum','ozet');else url.searchParams.delete('gorunum');if(phone)url.searchParams.set('ekran','telefon');else url.searchParams.delete('ekran');history.replaceState(null,'',url);
+}
+for(const theme of DECKS){const b=document.createElement('button');b.type='button';b.textContent=theme.name;b.dataset.theme=theme.id;b.onclick=()=>{selected=theme.id;render();};$('themes').append(b);}
+$('desktop').onclick=()=>{phone=false;render();};$('phone').onclick=()=>{phone=true;render();};$('cards').onclick=()=>{cards=!cards;render();};$('compare').onclick=()=>{overview=!overview;render();};render();

@@ -4,7 +4,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {deck} from '../src/engine.js';
 import {DECKS,sceneIndex,setDeckTheme,getDeckTheme,deckFiles,deckCoverFile,FEATURED_SCENES} from '../public/card-themes.js';
 import {face,card} from '../public/cards.js';
-import {TABLES,DEFAULT_APPEARANCE,readAppearance,saveAppearance,chooseDeckAppearance} from '../public/appearance.js';
+import {TABLES,DEFAULT_APPEARANCE,readAppearance,saveAppearance,chooseDeckAppearance,chooseTableAppearance} from '../public/appearance.js';
 
 test('classic stays the default and does not request any illustration atlases',()=>{
   assert.equal(getDeckTheme(),'classic');assert.deepEqual(deckFiles('classic'),[]);assert.doesNotMatch(face({color:'red',value:'4'}),/<image/);assert.equal(setDeckTheme('unknown'),'classic');assert.deepEqual(deckFiles('../bad'),[]);
@@ -68,24 +68,43 @@ test('Adventure Time expansion keeps transparent artwork and uses the correct ne
     assert.match(markup,new RegExp('adventure-'+sheet+'\\.webp'));assert.doesNotMatch(markup,/<clipPath|<mask/);
   }
 });
-test('appearance preferences validate identifiers and tolerate disabled storage',()=>{
-  assert.equal(TABLES[0].id,'green');assert.deepEqual(DEFAULT_APPEARANCE,{table:'green',deck:'classic'});
-  let saved;const store={getItem:()=>saved,setItem:(key,value)=>saved=value};assert.deepEqual(readAppearance(store),{table:'green',deck:'classic'});
-  for(const table of TABLES)for(const deck of DECKS){saveAppearance({table:table.id,deck:deck.id},store);assert.deepEqual(readAppearance(store),{table:table.id,deck:deck.id});}
-  saved='{"table":"invalid","deck":"<script>"}';assert.deepEqual(readAppearance(store),{table:'green',deck:'classic'});const blocked={getItem(){throw 0;},setItem(){throw 0;}};assert.doesNotThrow(()=>saveAppearance({},blocked));assert.equal(readAppearance(blocked).deck,'classic');
+const manual=(table='green',deck='classic')=>({table,deck,baseTable:table,tableSource:'manual'});
+const memory=()=>{let saved;return {getItem:()=>saved,setItem:(key,value)=>saved=value};};
+test('appearance preferences default to green and tolerate invalid or unavailable storage',()=>{
+  assert.equal(TABLES[0].id,'green');assert.deepEqual(DEFAULT_APPEARANCE,manual());const store=memory();assert.deepEqual(readAppearance(store),manual());
+  for(const table of TABLES)for(const deck of DECKS){saveAppearance(manual(table.id,deck.id),store);assert.deepEqual(readAppearance(store),manual(table.id,deck.id));}
+  store.setItem('',JSON.stringify({table:'invalid',deck:'<script>'}));assert.deepEqual(readAppearance(store),manual());const blocked={getItem(){throw 0;},setItem(){throw 0;}};assert.doesNotThrow(()=>saveAppearance({},blocked));assert.deepEqual(readAppearance(blocked),manual());
 });
-
-test('a saved card/background pair is restored exactly, including older Minecraft preferences',()=>{
-  let saved;const store={getItem:()=>saved,setItem:(key,value)=>saved=value};
-  for(const version of [undefined,0,1,2])for(const table of TABLES){saved=JSON.stringify({table:table.id,deck:'minecraft',version});assert.deepEqual(readAppearance(store),{table:table.id,deck:'minecraft'});}
-  saveAppearance({table:'rose',deck:'minecraft'},store);assert.deepEqual(readAppearance(store),{table:'rose',deck:'minecraft'});
+test('automatic Minecraft backgrounds restore the previous table across reload and every other skin',()=>{
+  for(const table of TABLES.filter(t=>t.id!=='minecraft'))for(const next of DECKS.filter(d=>d.id!=='minecraft')){
+    const store=memory(),before=manual(table.id,'cats'),auto=chooseDeckAppearance(before,'minecraft');
+    assert.deepEqual(auto,{table:'minecraft',deck:'minecraft',baseTable:table.id,tableSource:'auto'});saveAppearance(auto,store);
+    assert.deepEqual(readAppearance(store),auto);assert.deepEqual(chooseDeckAppearance(readAppearance(store),next.id),manual(table.id,next.id));
+  }
 });
-
-test('selecting Minecraft suggests its table once; later independent choices survive reselecting and reopening',()=>{
-  assert.deepEqual(chooseDeckAppearance({table:'wine',deck:'classic'},'minecraft'),{table:'minecraft',deck:'minecraft'});
-  assert.deepEqual(chooseDeckAppearance({table:'green',deck:'classic'},'minecraft',{matchTable:false}),{table:'green',deck:'minecraft'});
-  for(const table of TABLES){const personal={table:table.id,deck:'minecraft'};assert.deepEqual(chooseDeckAppearance(personal,'minecraft'),personal);for(const deck of DECKS.filter(d=>d.id!=='minecraft'))assert.equal(chooseDeckAppearance(personal,deck.id).table,table.id);}
-  assert.deepEqual(chooseDeckAppearance({table:'navy',deck:'adventure'},'unknown'),{table:'navy',deck:'adventure'});
+test('a manual background under Minecraft survives refresh and becomes the background restored on exit',()=>{
+  for(const table of TABLES){const store=memory(),auto=chooseDeckAppearance(manual('wine','cats'),'minecraft'),personal=chooseTableAppearance(auto,table.id);saveAppearance(personal,store);
+    assert.deepEqual(readAppearance(store),manual(table.id,'minecraft'));assert.deepEqual(chooseDeckAppearance(readAppearance(store),'kuromi'),manual(table.id,'kuromi'));
+    assert.deepEqual(chooseDeckAppearance(readAppearance(store),'minecraft'),personal);
+  }
+});
+test('explicit Minecraft table clicks remain allowed with another skin, including a click on the already automatic swatch',()=>{
+  const auto=chooseDeckAppearance(manual('navy','adventure'),'minecraft'),explicit=chooseTableAppearance(auto,'minecraft'),store=memory();
+  saveAppearance(explicit,store);assert.deepEqual(chooseDeckAppearance(readAppearance(store),'cats'),manual('minecraft','cats'));
+  assert.deepEqual(chooseTableAppearance(manual('rose','seal'),'minecraft'),manual('minecraft','seal'));
+});
+test('changing skins repeatedly cannot overwrite the remembered manual background',()=>{
+  let look=manual('rose','adventure');for(let i=0;i<6;i++){look=chooseDeckAppearance(look,'minecraft');assert.equal(look.baseTable,'rose');look=chooseDeckAppearance(look,'cats');assert.deepEqual(look,manual('rose','cats'));}
+  assert.deepEqual(chooseDeckAppearance(manual('wine'),'minecraft',{matchTable:false}),manual('wine','minecraft'));
+  assert.deepEqual(chooseDeckAppearance(manual('navy','adventure'),'unknown'),manual('navy','adventure'));assert.deepEqual(chooseTableAppearance(manual('navy','adventure'),'unknown'),manual('navy','adventure'));
+});
+test('legacy sticky Minecraft saves migrate safely while unrelated manual colors remain untouched',()=>{
+  const store=memory();for(const version of [undefined,0,1,2]){
+    store.setItem('',JSON.stringify({table:'minecraft',deck:'cats',version}));assert.deepEqual(readAppearance(store),manual('green','cats'));
+    store.setItem('',JSON.stringify({table:'minecraft',deck:'minecraft',version}));const auto=readAppearance(store);assert.equal(auto.tableSource,'auto');assert.deepEqual(chooseDeckAppearance(auto,'seal'),manual('green','seal'));
+    store.setItem('',JSON.stringify({table:'rose',deck:'minecraft',version}));assert.deepEqual(readAppearance(store),manual('rose','minecraft'));
+  }
+  store.setItem('',JSON.stringify({table:'minecraft',deck:'cats',baseTable:'wine',tableSource:'auto',version:3}));assert.deepEqual(readAppearance(store),manual('wine','cats'));
 });
 
 test('optional Minecraft backgrounds have separate mobile/desktop files within a small combined budget',async()=>{

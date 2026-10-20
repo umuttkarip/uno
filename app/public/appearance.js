@@ -11,12 +11,27 @@ export const TABLES=[
   {id:'rose',name:'Gülkurusu',felt:'#583a42',glow:'#a26c7350',panel:'#5c4048',deep:'#412c34'},
   {id:'minecraft',name:'Minecraft',felt:'#152b20',glow:'#223b2900',panel:'#1b3025',deep:'#10251b'}
 ];
-export const DEFAULT_APPEARANCE=Object.freeze({table:TABLES[0].id,deck:DECKS[0].id});
-export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem(storageKey('uno-look-v1')));return {table:TABLES.some(t=>t.id===data?.table)?data.table:DEFAULT_APPEARANCE.table,deck:DECKS.some(d=>d.id===data?.deck)?data.deck:DEFAULT_APPEARANCE.deck};}catch{return {...DEFAULT_APPEARANCE};}}
-export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem(storageKey('uno-look-v1'),JSON.stringify({...look,version:2}));}catch{}}
+export const DEFAULT_APPEARANCE=Object.freeze({table:TABLES[0].id,deck:DECKS[0].id,baseTable:TABLES[0].id,tableSource:'manual'});
+const validTable=id=>TABLES.some(t=>t.id===id);
+function normalizeAppearance(data,{legacy=false}={}){
+  let table=validTable(data?.table)?data.table:DEFAULT_APPEARANCE.table;
+  const deck=DECKS.some(d=>d.id===data?.deck)?data.deck:DEFAULT_APPEARANCE.deck;
+  // Older saves cannot distinguish the automatic Minecraft switch from a click.
+  // Treat that ambiguous value as automatic, never as a new global default.
+  if(legacy&&data?.version!==3&&table==='minecraft')return {table:deck==='minecraft'?'minecraft':'green',deck,baseTable:'green',tableSource:deck==='minecraft'?'auto':'manual'};
+  const auto=data?.tableSource==='auto',baseTable=validTable(data?.baseTable)?data.baseTable:'green';
+  if(auto&&deck==='minecraft'&&table==='minecraft')return {table,deck,baseTable,tableSource:'auto'};
+  if(auto)table=baseTable;
+  return {table,deck,baseTable:table,tableSource:'manual'};
+}
+export function readAppearance(storage){try{storage??=globalThis.localStorage;return normalizeAppearance(JSON.parse(storage.getItem(storageKey('uno-look-v1'))),{legacy:true});}catch{return {...DEFAULT_APPEARANCE};}}
+export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem(storageKey('uno-look-v1'),JSON.stringify({...normalizeAppearance(look),version:3}));}catch{}}
+export function chooseTableAppearance(look,id){const current=normalizeAppearance(look);return validTable(id)?{...current,table:id,baseTable:id,tableSource:'manual'}:current;}
 export function chooseDeckAppearance(look,id,{matchTable=true}={}){
-  if(!DECKS.some(d=>d.id===id))return {...look};
-  return {table:matchTable&&id==='minecraft'&&id!==look.deck?'minecraft':look.table,deck:id};
+  const current=normalizeAppearance(look);
+  if(!DECKS.some(d=>d.id===id)||id===current.deck)return current;
+  const manual=current.tableSource==='auto'?chooseTableAppearance(current,current.baseTable):current;
+  return matchTable&&id==='minecraft'?{...manual,table:'minecraft',deck:id,tableSource:'auto'}:{...manual,deck:id};
 }
 const loaded=new Map();
 function loadDeck(id,rules='classic'){
@@ -28,7 +43,7 @@ export function mountAppearance({onDeckChange,onError}){
   const $=id=>document.getElementById(id);
   if(!APPEARANCE_POLICY.tables&&!APPEARANCE_POLICY.cards){$('appearance-toggle').hidden=true;setDeckTheme('classic');return {ensureDeck:()=>Promise.resolve(),setBusy:()=>{}};}
   $('appearance-toggle').hidden=false;
-  const panel=$('appearance-panel');let look=readAppearance(),built=false,loading=false,busy=false,previewDeck,rules='classic';
+  const panel=$('appearance-panel');let look=readAppearance(),built=false,loading=false,busy=false,previewDeck,rules='classic',tableRevision=0;
   if(!APPEARANCE_POLICY.tables)look.table='green';
   if(!APPEARANCE_POLICY.cards)look.deck='classic';
   $('table-options').hidden=!APPEARANCE_POLICY.tables;$('deck-options').hidden=!APPEARANCE_POLICY.cards;$('appearance-preview').hidden=!APPEARANCE_POLICY.cards;
@@ -38,8 +53,8 @@ export function mountAppearance({onDeckChange,onError}){
   $('appearance-toggle').onclick=()=>open(panel.hidden);$('appearance-close').onclick=()=>open(false);
   panel.addEventListener('click',async event=>{
     const swatch=event.target.closest('button[data-table]'),deck=event.target.closest('button[data-deck]');
-    if(swatch){look.table=swatch.dataset.table;table();saveAppearance(look);refresh();}
-    if(deck&&!loading&&!busy&&deck.dataset.deck!==look.deck){loading=true;refresh();try{await loadDeck(deck.dataset.deck,rules);look=chooseDeckAppearance(look,deck.dataset.deck,{matchTable:APPEARANCE_POLICY.tables});table();setDeckTheme(look.deck);saveAppearance(look);onDeckChange();}catch(error){onError(error.message);}finally{loading=false;refresh();}}
+    if(swatch){tableRevision++;look=chooseTableAppearance(look,swatch.dataset.table);table();saveAppearance(look);refresh();}
+    if(deck&&!loading&&!busy&&deck.dataset.deck!==look.deck){const revision=tableRevision;loading=true;refresh();try{await loadDeck(deck.dataset.deck,rules);look=chooseDeckAppearance(look,deck.dataset.deck,{matchTable:APPEARANCE_POLICY.tables&&revision===tableRevision});table();setDeckTheme(look.deck);saveAppearance(look);onDeckChange();}catch(error){onError(error.message);}finally{loading=false;refresh();}}
   });
   document.addEventListener('pointerdown',event=>{if(!panel.hidden&&!panel.contains(event.target)&&!$('appearance-toggle').contains(event.target))open(false);});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')open(false);});
