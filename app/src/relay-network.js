@@ -33,7 +33,8 @@ export class TableConnection {
   apply(packet){
     if(this.closed)return;
     for(const message of packet.messages??[]){if(this.seenMessages.has(message.id))continue;this.seenMessages.add(message.id);if(this.seenMessages.size>100)this.seenMessages.delete(this.seenMessages.values().next().value);this.onMessage?.(message);}
-    if(!packet.state||packet.cursor<this.cursor)return;
+    if(!packet.state||packet.cursor<this.cursor||this.hasState&&packet.cursor===this.cursor)return;
+    this.hasState=true;
     this.cursor=packet.cursor;this.version=packet.version;this.lastContact=Date.now();this.present=packet.state.players.every(p=>p.online);this.onPresence?.(this.present);this.onState?.(packet);
   }
   async poll(){

@@ -2,6 +2,7 @@ import {RoomAuthority,IDLE_LIMIT} from './room.js';
 import {roomKey,validName} from './engine.js';
 
 const ONLINE_LIMIT=45000,HEARTBEAT=12000,MESSAGE_LIFE=5000;
+const ACTIVE_POLL_INTERVAL=100,IDLE_POLL_INTERVAL=500,MAX_POLL_READS=32;
 const origins=new Set(['https://umuttkarip.github.io','https://uno-masa-umut.caircon-baus-1525.chatgpt.site','http://localhost:4175','http://localhost:4176']);
 const problem=(text,status=400)=>Object.assign(new Error(text),{status});
 const bearer=request=>request.headers.get('Authorization')?.replace(/^Bearer /,'')??'';
@@ -36,7 +37,7 @@ export async function relayApi(request,env,{now=Date.now,pause=sleep}={}){
     if(typeof key!=='string'||!/^(main|test):[a-f0-9]{64}$/.test(key))throw problem('Masa bulunamadı.',404);
     const after=Number(polling?url.searchParams.get('after'):body.after) || 0;
     const wait=polling?Math.min(20000,Math.max(0,Number(url.searchParams.get('wait'))||0)):0;
-    const start=Date.now();
+    const start=Date.now();let reads=0;
     do{
       const result=await transact(env.DB,key,{now,token,create:entering?{name,room:body.room,rules:body.rules}:null,run:(a,data,index)=>{
         if(entering){if(a.state.players[index].name!==name)throw problem('Oyuncu adı değişmiş.',403);a.touch();return;}
@@ -60,9 +61,11 @@ export async function relayApi(request,env,{now=Date.now,pause=sleep}={}){
       }});
       if(path.endsWith('/leave'))return json({left:true});
       if(!polling||result.data.cursor>after)return json(packet(result,token,key,after,now()));
-      if(!wait||Date.now()-start>=wait)return json({unchanged:true,cursor:result.data.cursor,serverNow:now()});
+      // Bound each long poll's database work while active tables check more often.
+      if(!wait||++reads>=MAX_POLL_READS||Date.now()-start>=wait)return json({unchanged:true,cursor:result.data.cursor,serverNow:now()});
       if(request.signal.aborted)return new Response(null,{status:204,headers});
-      await pause(Math.min(500,wait));
+      const active=result.a.state.players.length>1&&result.a.state.players.every(p=>p.online);
+      await pause(Math.min(active?ACTIVE_POLL_INTERVAL:IDLE_POLL_INTERVAL,wait));
     }while(true);
   }catch(error){
     if(error.status)return json({error:error.message},error.status);

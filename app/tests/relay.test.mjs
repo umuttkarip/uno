@@ -84,6 +84,20 @@ test('a pending HTTPS poll wakes on another player joining instead of waiting fo
   const packet=await response.json();assert.equal(packet.state.players.length,2);assert.equal(reads,1);
 });
 
+test('active table polls check every 100 ms and bound quiet database reads per request',async()=>{
+  const x=await setup(),a=await x.enter('A'),b=await x.enter('B'),delays=[];
+  const request=new Request('https://relay.test/api/v1/state?'+new URLSearchParams({key:a.key,after:b.cursor,wait:20000}),{headers:{Authorization:'Bearer '+a.token}});
+  const response=await relayApi(request,x.env,{now:()=>10000,pause:async ms=>delays.push(ms)}),packet=await response.json();
+  assert.equal(response.status,200);assert.equal(packet.unchanged,true);assert.equal(delays.length,31);assert.ok(delays.every(ms=>ms===100));
+});
+
+test('one-player lobbies retain the slower idle checks and wake as soon as a friend joins',async()=>{
+  const x=await setup(),a=await x.enter('A'),delays=[];
+  const request=new Request('https://relay.test/api/v1/state?'+new URLSearchParams({key:a.key,after:a.cursor,wait:20000}),{headers:{Authorization:'Bearer '+a.token}});
+  const response=await relayApi(request,x.env,{now:()=>10000,pause:async ms=>{delays.push(ms);await x.enter('B');}}),packet=await response.json();
+  assert.deepEqual(delays,[500]);assert.equal(packet.state.players.length,2);
+});
+
 test('two-, three- and six-player games finish through authenticated HTTPS actions and unanimous rematches',async()=>{
   for(const n of [2,3,6]){
     const x=await setup(),players=[];for(let i=0;i<n;i++)players.push(await x.enter('P'+i));
@@ -167,6 +181,14 @@ test('browser HTTP transport restores snapshots, deduplicates message delivery a
   const client=new TableConnection({onState:()=>states++,onMessage:()=>messages++},{fetch:transport,base:'https://relay.test/api/v1/'});
   await client.enter('A','23');assert.equal(states,1);await client.action({type:'ready',round:0});assert.equal(states,2);
   const event={id:'same',text:'UNO',player:0};client.apply({messages:[event,event]});assert.equal(messages,1);client.shutdown();assert.equal(client.controllers.size,0);
+});
+
+test('duplicate action and poll replies deliver one table presentation without losing chat',()=>{
+  let states=0,messages=0;const client=new TableConnection({onState:()=>states++,onMessage:()=>messages++});
+  const packet={cursor:4,version:2,state:{players:[{online:true},{online:true}]},messages:[{id:'first',player:0,text:'Merhaba'}]};
+  client.apply(packet);client.apply(packet);assert.equal(states,1);assert.equal(messages,1);
+  client.apply({...packet,cursor:3,messages:[{id:'second',player:1,text:'Eski yanıtta mesaj'}]});assert.equal(states,1);assert.equal(messages,2);
+  client.apply({...packet,cursor:5});assert.equal(states,2);assert.equal(messages,2);client.shutdown();
 });
 
 test('chat names and own bubbles survive lobby departures, new joins and queued old messages',async()=>{
