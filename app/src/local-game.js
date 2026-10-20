@@ -1,10 +1,11 @@
 import {RoomAuthority,IDLE_LIMIT} from './room.js';
 import {botCommand} from './bot.js';
 import {validName} from './engine.js';
+import {storageKey} from './environment.js';
 export class LocalGame {
   constructor(callbacks){Object.assign(this,callbacks);this.closed=false;}
   async enter(name){
-    this.name=validName(name);this.storageKey='uno-solo-v1';const room='bilgisayar:'+this.name;
+    this.name=validName(name);this.storageKey=storageKey('uno-solo-v1');const room='bilgisayar:'+this.name;
     let saved;try{const previous=JSON.parse(sessionStorage.getItem(this.storageKey));if(previous?.name===this.name&&Date.now()-previous.saved.lastActive<IDLE_LIMIT)saved=previous.saved;}catch{}
     const token=saved?.state.players[0].token??crypto.randomUUID();
     this.authority=new RoomAuthority(room,this.name,token,{saved,mode:'computer'});

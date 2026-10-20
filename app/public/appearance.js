@@ -1,6 +1,7 @@
 import {DECKS,setDeckTheme,deckFiles} from './card-themes.js';
 import {face} from './cards.js';
 import {APPEARANCE_POLICY} from './release-policy.js';
+import {storageKey} from '../src/environment.js';
 export const TABLES=[
   {id:'green',name:'Yeşil',felt:'#10362c',glow:'#24624460',panel:'#16382e',deep:'#0d2e25'},
   {id:'wine',name:'Bordo',felt:'#48232d',glow:'#81404c50',panel:'#4a2934',deep:'#321b24'},
@@ -9,8 +10,8 @@ export const TABLES=[
   {id:'mauve',name:'Leylak',felt:'#40334c',glow:'#80658c50',panel:'#483c54',deep:'#30273b'},
   {id:'rose',name:'Gülkurusu',felt:'#583a42',glow:'#a26c7350',panel:'#5c4048',deep:'#412c34'}
 ];
-export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem('uno-look-v1'));return {table:TABLES.some(t=>t.id===data?.table)?data.table:'green',deck:DECKS.some(d=>d.id===data?.deck)?data.deck:'classic'};}catch{return {table:'green',deck:'classic'};}}
-export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem('uno-look-v1',JSON.stringify(look));}catch{}}
+export function readAppearance(storage){try{storage??=globalThis.localStorage;const data=JSON.parse(storage.getItem(storageKey('uno-look-v1')));return {table:TABLES.some(t=>t.id===data?.table)?data.table:'green',deck:DECKS.some(d=>d.id===data?.deck)?data.deck:'classic'};}catch{return {table:'green',deck:'classic'};}}
+export function saveAppearance(look,storage){try{storage??=globalThis.localStorage;storage.setItem(storageKey('uno-look-v1'),JSON.stringify(look));}catch{}}
 const loaded=new Map();
 function loadDeck(id){
   if(loaded.has(id))return loaded.get(id);

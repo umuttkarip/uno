@@ -8,6 +8,7 @@ import {unlockAudio,prepareAudio} from './card-audio.js';
 import {EXPRESSIONS,expression,expressionImage,preloadExpressions} from './expressions.js';
 import {mountAppearance} from './appearance.js';
 import {readStats,rememberPlayer,recordResult} from '../src/scores.js';
+import {storageKey} from '../src/environment.js';
 
 const $=id=>document.getElementById(id);
 let connection,state,busy=false,entering=false,moving=false,pendingCard,resultRound=-1;
@@ -243,4 +244,4 @@ window.addEventListener('pointermove',event=>{if(!drag)return;const delta=event.
 function endDrag(){if(drag?.moved)suppressClickUntil=Date.now()+250;drag=null;$('hand-scroll').classList.remove('dragging');}
 window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
 window.addEventListener('pagehide',()=>connection?.shutdown());
-try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem('uno-solo-v1')):roomParam?JSON.parse(sessionStorage.getItem('uno-v7:'+roomKey(roomParam))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}
+try{const saved=mode==='bot'?JSON.parse(sessionStorage.getItem(storageKey('uno-solo-v1'))):roomParam?JSON.parse(sessionStorage.getItem(storageKey('uno-v7:'+roomKey(roomParam)))):null;if(saved?.name&&(saved.token||mode==='bot')){$('name').value=saved.name;$('entry-form').requestSubmit();}}catch{}

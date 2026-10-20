@@ -1,12 +1,13 @@
 {
   "name": "uno-masa",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node scripts/preview.mjs",
     "start": "node scripts/preview.mjs",
     "build": "node scripts/build-pages.mjs",
+    "build:design-test": "node scripts/build-design-test.mjs",
     "preview:design": "node scripts/design-preview.mjs",
     "test": "node --test tests/*.test.mjs"
   },

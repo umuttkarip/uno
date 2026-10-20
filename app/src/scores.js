@@ -1,4 +1,5 @@
-const KEY='uno-history-v1';
+import {storageKey} from './environment.js';
+const KEY=storageKey('uno-history-v1');
 const playerKey=name=>String(name??'').trim().toLocaleLowerCase('tr-TR');
 function read(storage){try{const data=JSON.parse(storage.getItem(KEY));return data&&typeof data==='object'?data:{};}catch{return {};}}
 const count=n=>Number.isSafeInteger(n)&&n>=0?n:0;

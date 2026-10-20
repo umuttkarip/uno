@@ -1,4 +1,5 @@
 import Peer from 'peerjs';
+import {storageKey,TABLE_PEER_PREFIX} from './environment.js';
 import {roomKey,validName} from './engine.js';
 import {RoomAuthority,IDLE_LIMIT} from './room.js';
 const read=key=>{try{return JSON.parse(sessionStorage.getItem(key));}catch{return null;}};
@@ -8,11 +9,11 @@ const erase=key=>{try{sessionStorage.removeItem(key);}catch{}};
 export class TableConnection {
   constructor(callbacks){Object.assign(this,callbacks);this.pending=new Map();this.connections=new Map();this.closed=false;this.version=0;this.reconnects=0;}
   async enter(name,room){
-    this.name=validName(name);this.room=validName(room,'room');this.capacity=6;this.key=roomKey(room);this.storageKey='uno-v7:'+this.key;
+    this.name=validName(name);this.room=validName(room,'room');this.capacity=6;this.key=roomKey(room);this.storageKey=storageKey('uno-v7:'+this.key);
     const previous=read(this.storageKey);this.token=previous?.name===this.name?previous.token:crypto.randomUUID();
     this.saved=previous?.name===this.name&&previous.host&&previous.saved.state.mode==='group'&&Date.now()-previous.saved.lastActive<IDLE_LIMIT?previous.saved:null;
     const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(this.key));
-    this.hostId='umut-uno-v7-'+Array.from(new Uint8Array(hash)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,48);
+    this.hostId=TABLE_PEER_PREFIX+Array.from(new Uint8Array(hash)).map(n=>n.toString(16).padStart(2,'0')).join('').slice(0,48);
     return new Promise((resolve,reject)=>{this.resolveEntry=resolve;this.rejectEntry=reject;this.entryTimer=setTimeout(()=>this.fail('Bağlantı kurulamadı. Tekrar dene.'),25000);this.claim();});
   }
   claim(){

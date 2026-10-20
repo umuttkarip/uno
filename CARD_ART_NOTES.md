@@ -6,7 +6,7 @@ Kedi kadrosu gri tekir, sarman, smokin ve üç renkli kedilerden oluşur; hareke
 
 ## Onay durumu
 
-Masa ve kart tasarımları ayrı ayrı manuel kullanıcı onayı bekliyor. Canlı sürümde kapalıdır; public/release-policy.js iki onay değerini false tutar. `npm run preview:design` ile http://localhost:4176/uno/ üzerinde denenir. Normal GitHub Pages derlemesi kart atlaslarını içermez.
+Masa ve kart tasarımları ayrı ayrı manuel kullanıcı onayı bekliyor. Ana canlı oyunda kapalıdır; public/release-policy.js iki onay değerini false tutar. `npm run preview:design` ile http://localhost:4176/uno/ üzerinde denenir. Ana GitHub Pages derlemesi kart atlaslarını içermez. Kullanıcının canlı test talebi üzerine /uno/test/?modo=bot altında ayrı, internete açık önizleme ve /uno/test/desteler.html galerisi yayımlanır; bu, ana oyun tasarımlarına verilmiş onay değildir.
 
 ## Dosyalar ve üretim
 
