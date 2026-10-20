@@ -60,7 +60,7 @@ const paw=(x,y,scale,fill)=>`<g transform="translate(${x} ${y}) rotate(-23) scal
 const skull=(x,y,scale,fill)=>`<g transform="translate(${x} ${y}) scale(${scale})" fill="${fill}"><path d="M-7 0a7 6 0 1 1 14 0c0 3-2 4-4 5v3H-3V5c-2-1-4-2-4-5Z"/><ellipse cx="-2.5" cy="0" rx="1.6" ry="2" fill="#322036"/><ellipse cx="2.5" cy="0" rx="1.6" ry="2" fill="#322036"/></g>`;
 
 function watermark(c,color,theme){
-  if(theme==='cats'||c.value==='wild')return '';
+  if(['cats','kuromi','adventure'].includes(theme)||c.value==='wild')return '';
   const value=/^\d$/.test(c.value)?c.value:c.value==='wild4'?'+4':c.value==='draw2'?'+2':null;
   const fill=theme==='kuromi'?'#fff0fb':theme==='adventure'?'#fff9dc':color;
   if(value)return `<text x="${theme==='kuromi'?11:8}" y="${theme==='adventure'?83:86}" fill="${fill}" stroke="${theme==='adventure'?'#172c32':theme==='kuromi'?'#603b6d':'none'}" stroke-width="${theme==='adventure'?2:theme==='kuromi'?1.3:0}" paint-order="stroke" font-family="Arial,Helvetica,sans-serif" font-size="${value.length>1?43:68}" font-style="italic" font-weight="900" letter-spacing="-5">${value}</text>`;

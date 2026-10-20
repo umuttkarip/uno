@@ -29,3 +29,5 @@ Masa ve kart tasarımları manuel onay bekler; canlı sitede varsayılan yeşil 
 5.5.0: Adventure Time, sevilen mevcut32çizim ve baskıyı koruyarak64sahneye çıktı (43sayı,20özel,1arka). Her çizim destede en çok iki kez, aynı renkteki çift özel kartlar da farklıdır. Kapak dahil219216B; yalnız /uno/test/ önizlemesinde.
 
 5.5.1: Yeşil ilk varsayılan, kayıtlı kart/masa tercihleri bağımsız korunur. Minecraft seçimi eş masaya geçer; sonra kişisel arka plan serbesttir. Her renkte aksolotl ve Marceline vardır; Minecraft3yeniaksolotl ve yeniarka ile67aktif sahne/231284B kullanır. Yalnız test.
+
+5.5.2: Kuromi ve Adventure Time kartlarında ortadaki tekrar sayı/eylem baskısı kaldırıldı; köşe işaretleri ve çizimler korunur. Yalnız test.
