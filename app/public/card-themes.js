@@ -78,7 +78,7 @@ function backPrint(theme,preview){
   return `${field}${art(theme,31,{preview,x:-6,y:20,size:112})}<path d="M12 138h76" stroke="${f.ink}" stroke-width="1" opacity=".5"/>${palette.map((fill,i)=>`<path d="m${34+i*9} 137 4 4-4 4-4-4Z" fill="${fill}" stroke="${f.paper}" stroke-width=".7"/>`).join('')}`;
 }
 export function themedFace(c,back,theme,{preview=false}={}){
-  if(theme==='minecraft')return minecraftFace(c,back,preview);
+  if(theme==='minecraft')return minecraftFace(c,back);
   const f=family[theme];if(!f)return '';
   const color=colors[c.color]??colors.wild,wild=c.color==='wild',index=sceneIndex(c,back,theme);
   const prints={cats:catPrint,seal:sealPrint,kuromi:kuromiPrint,adventure:adventurePrint};
@@ -91,33 +91,22 @@ export function themedFace(c,back,theme,{preview=false}={}){
   return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="${theme}" style="overflow:hidden;border-radius:9% / 6%">${face}${corners}<g transform="rotate(180 50 75)">${corners}</g><rect x="1.7" y="1.7" width="96.6" height="146.6" rx="7.3" fill="none" stroke="${f.paper}" stroke-width="3.4"/><rect x="3.6" y="3.6" width="92.8" height="142.8" rx="5.4" fill="none" stroke="${f.ink}" stroke-width="${theme==='adventure'?1.1:.6}" opacity=".72"/></svg>`;
 }
 
-// Minecraft uses portrait artwork across the entire face, with vector corner marks.
-const pixelDigits={0:['11111','10001','10011','10101','11001','10001','11111'],1:['00100','01100','00100','00100','00100','00100','01110'],2:['11110','00001','00001','01110','10000','10000','11111'],3:['11110','00001','00001','01110','00001','00001','11110'],4:['10010','10010','10010','11111','00010','00010','00010'],5:['11111','10000','10000','11110','00001','00001','11110'],6:['01111','10000','10000','11110','10001','10001','01110'],7:['11111','00001','00010','00100','01000','01000','01000'],8:['01110','10001','10001','01110','10001','10001','01110'],9:['01110','10001','10001','01111','00001','00001','11110'],'+':['00000','00100','00100','11111','00100','00100','00000'],U:['10001','10001','10001','10001','10001','10001','11111'],N:['10001','11001','11001','10101','10011','10011','10001'],O:['11111','10001','10001','10001','10001','10001','11111']};
-const pixelCache=new Map();
-function pixelWord(text,fill,size=3){
-  const key=text+':'+fill+':'+size;if(pixelCache.has(key))return pixelCache.get(key);
-  const pixels=new Set();[...text].forEach((letter,column)=>(pixelDigits[letter]??[]).forEach((row,y)=>[...row].forEach((bit,x)=>{if(bit==='1')pixels.add((column*6+x)+','+y);})));let shapes='',edge='';
-  for(const value of pixels){const [x,y]=value.split(',').map(Number),left=x*size,top=y*size;shapes+=`M${left} ${top}h${size+.04}v${size+.04}h-${size+.04}Z`;
-    if(!pixels.has((x-1)+','+y))edge+=`M${left} ${top}v${size}`;if(!pixels.has((x+1)+','+y))edge+=`M${left+size} ${top}v${size}`;
-    if(!pixels.has(x+','+(y-1)))edge+=`M${left} ${top}h${size}`;if(!pixels.has(x+','+(y+1)))edge+=`M${left} ${top+size}h${size}`;
-  }
-  const result=`<path d="${edge}" fill="none" stroke="#101c1d" stroke-width="${size*.8}" stroke-linecap="square" stroke-linejoin="miter"/><path d="${shapes}" fill="${fill}"/>`;pixelCache.set(key,result);return result;
-}
-function minecraftArtwork(index,preview=false){
-  if(preview)return '<image href="./assets/cards/minecraft-cover.webp" width="100" height="150" preserveAspectRatio="none"/>';
+// Keep the UNO print separate from the illustration: flat field, white oval, corner marks.
+function minecraftArtwork(index){
   const local=index%16,column=local%4,row=Math.floor(local/4),sheet=['a','b','c','d'][Math.floor(index/16)];
   return `<svg width="100" height="150" style="width:100%;height:100%;overflow:hidden" viewBox="${column*100} ${row*150} 100 150"><image href="${atlasFile('minecraft',sheet)}" width="400" height="600" preserveAspectRatio="none"/></svg>`;
 }
-function minecraftFace(c,back,preview){
-  const index=sceneIndex(c,back,'minecraft'),wild=back||c.color==='wild',color=wild?'#201a36':colors[c.color],id='mc-print-'+(back?'back':c.color);
-  const wash=`<defs><linearGradient id="${id}-wash" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${color}"/><stop offset=".12" stop-color="${color}" stop-opacity=".86"/><stop offset=".36" stop-color="${color}" stop-opacity="0"/><stop offset=".65" stop-color="${color}" stop-opacity="0"/><stop offset=".89" stop-color="${color}" stop-opacity=".72"/><stop offset="1" stop-color="${color}"/></linearGradient><linearGradient id="${id}-light" x2="1" y2="1"><stop stop-color="#fff7dc" stop-opacity=".8"/><stop offset=".4" stop-color="#fff7dc" stop-opacity=".14"/><stop offset="1" stop-color="#fff7dc" stop-opacity=".5"/></linearGradient></defs>`;
-  let print=wash+minecraftArtwork(index,back&&preview)+`<rect width="100" height="150" fill="url(#${id}-wash)"/>`;
+function minecraftFace(c,back){
+  const color=colors[c.color]??'#191b1a',paper='#fcfcf4';
+  const base=`<rect x=".6" y=".6" width="98.8" height="148.8" rx="9" fill="${paper}" stroke="#c4c7bd" stroke-width="1.2"/><rect x="5" y="5" width="90" height="140" rx="5.5" fill="${back?'#151b1d':color}"/>`;
+  let print;
   if(back){
-    print+=`<path d="M9 46Q50 38 91 46v58Q50 112 9 104Z" fill="#181728" opacity=".72"/><path d="M15 49h7m56 0h7M15 101h7m56 0h7" stroke="#c7b8d7" stroke-width="1.2"/><g transform="translate(22 61)">${pixelWord('UNO','#fff5da',3.3)}</g>${palette.map((fill,i)=>`<path d="m${35+i*9} 92 3.3-3.3 3.3 3.3-3.3 3.3Z" fill="${fill}" stroke="#fff5da" stroke-width=".5"/>`).join('')}`;
+    print='<ellipse cx="50" cy="75" rx="31" ry="57" transform="rotate(28 50 75)" fill="#d90b28"/><text x="46" y="86" text-anchor="middle" transform="rotate(-24 50 75)" fill="#f5c400" stroke="#101517" stroke-width="2.5" paint-order="stroke" font-family="Arial,Helvetica,sans-serif" font-style="italic" font-weight="900" font-size="33" letter-spacing="-3">UNO</text>';
   }else{
-    const mark=/^\d$/.test(c.value)?`<g transform="translate(8 7)">${pixelWord(c.value,'#fff9e8',3.35)}${['6','9'].includes(c.value)?'<path d="M0 26h17" stroke="#fff9e8" stroke-width="1.8"/>':''}</g>`:['draw2','wild4'].includes(c.value)?`<g transform="translate(8 9)">${pixelWord(c.value==='draw2'?'+2':'+4','#fff9e8',2.45)}</g>`:`<g transform="translate(1 -1) scale(.9)">${glyph(c.value,'#fff9e8','#152019',1.4)}</g>`;
-    print+=mark+`<g transform="rotate(180 50 75)">${mark}</g>`;
-    if(c.value==='wild4')print+=palette.map((fill,i)=>`<path d="M${77+i%2*7} ${9+Math.floor(i/2)*7}h6v6h-6Z" fill="${fill}" stroke="#fff9e8" stroke-width=".6"/>`).join('');
+    const oval='<ellipse cx="50" cy="75" rx="35" ry="58" transform="rotate(28 50 75)"/>';
+    const art=`<defs><clipPath id="mc-illustration-oval">${oval}</clipPath></defs><g clip-path="url(#mc-illustration-oval)">${minecraftArtwork(sceneIndex(c,false,'minecraft'))}</g>`;
+    const corner=glyph(c.value,c.color==='yellow'?'#282923':paper,'none',0);
+    print=art+`<ellipse cx="50" cy="75" rx="35" ry="58" transform="rotate(28 50 75)" fill="none" stroke="${paper}" stroke-width="3.5"/>${corner}<g transform="rotate(180 50 75)">${corner}</g>`;
   }
-  return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="minecraft"${back?'':` data-card-value="${c.value}"`} style="overflow:hidden;border-radius:9% / 6%">${print}<rect x="1.5" y="1.5" width="97" height="147" rx="7.5" fill="none" stroke="#fff4dc" stroke-width="3"/><rect x="3.4" y="3.4" width="93.2" height="143.2" rx="5.5" fill="none" stroke="${back?'#9c8db1':color}" stroke-width="2.2"/><rect x="4.8" y="4.8" width="90.4" height="140.4" rx="4.2" fill="none" stroke="url(#${id}-light)" stroke-width=".6"/></svg>`;
+  return `<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-deck="minecraft"${back?'':` data-card-value="${c.value}"`} style="overflow:hidden;border-radius:9% / 6%">${base}${print}</svg>`;
 }
