@@ -5,6 +5,7 @@ import argparse
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('source',type=Path)
+parser.add_argument('--suffix',default='')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 sheet=Image.open(args.source).convert('RGBA')
@@ -16,6 +17,6 @@ for i,name in enumerate(names):
     if not bounds:raise ValueError('Empty BMO sticker: '+name)
     image=image.crop(bounds)
     image.thumbnail((176,160),Image.Resampling.LANCZOS)
-    target=root/'public/assets/expressions'/('bmo-'+name+'.webp')
+    target=root/'public/assets/expressions'/('bmo-'+name+('-'+args.suffix if args.suffix else '')+'.webp')
     image.save(target,'WEBP',quality=84,method=6)
     print(target.name,target.stat().st_size)

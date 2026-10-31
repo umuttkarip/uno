@@ -14,6 +14,11 @@ const hash=createHash('sha256').update(await readFile(join(output,'app.js'))).up
 const approvedStyle=preview||TABLE_DESIGNS_APPROVED||CARD_DESIGNS_APPROVED;
 const html=(await readFile('public/index.html','utf8')).replace('<html lang="tr">',approvedStyle?'<html lang="tr" class="design-preview">':'<html lang="tr">').replace('./app.js','./app.js?v='+hash).replace('./style.css','./style.css?v='+hash);
 await writeFile(join(output,'index.html'),html);
+await build({entryPoints:['public/admin.js'],bundle:true,format:'esm',target:['es2022'],outfile:join(output,'admin.js'),minify:true,define:{__UNO_DESIGN_PREVIEW__:String(preview)}});
+const adminCss=await transform(await readFile('public/admin.css','utf8'),{loader:'css',minify:true});
+await writeFile(join(output,'admin.css'),adminCss.code);await mkdir(join(output,'x'),{recursive:true});
+const adminHash=createHash('sha256').update(await readFile(join(output,'admin.js'))).update(adminCss.code).digest('hex').slice(0,12);
+await writeFile(join(output,'x/index.html'),(await readFile('public/x/index.html','utf8')).replace('../admin.js','../admin.js?v='+adminHash).replace('../admin.css','../admin.css?v='+adminHash));
 await copyFile('public/favicon.svg',join(output,'favicon.svg'));
 if(TABLE_DESIGNS_APPROVED||preview)await copyTableBackgrounds(output);
 for(const file of await assetFiles('public/assets',{includeCards:CARD_DESIGNS_APPROVED||preview,includeTables:TABLE_DESIGNS_APPROVED||preview})){const target=join(output,'assets',file);await mkdir(dirname(target),{recursive:true});await copyFile(join('public/assets',file),target);}

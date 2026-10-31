@@ -46,7 +46,8 @@ function prepareChat(){
   if(chatReady)return;
   chatReady=true;
   const choice=item=>`<button type="button" class="${item.sticker?'sticker-choice':''}" data-emote="${item.code}" aria-label="${item.name}">${expressionImage(item.code)}</button>`;
-  $('stickers').innerHTML=EXPRESSIONS.filter(item=>item.sticker).map(choice).join('');
+  $('seal-stickers').innerHTML=EXPRESSIONS.filter(item=>item.sticker&&!item.code.startsWith('bmo-')).map(choice).join('');
+  $('bmo-stickers').innerHTML=EXPRESSIONS.filter(item=>item.code.startsWith('bmo-')).map(choice).join('');
   $('emotes').innerHTML=EXPRESSIONS.filter(item=>!item.sticker).map(choice).join('');
   preloadExpressions();
 }
@@ -57,7 +58,7 @@ function fitChat(){
   const panel=$('chat-panel'),viewport=window.visualViewport,height=viewport?.height??window.innerHeight;
   panel.style.setProperty('--chat-visible-height',height+'px');
   panel.style.setProperty('--chat-keyboard-offset',Math.max(0,window.innerHeight-height-(viewport?.offsetTop??0))+'px');
-  panel.dataset.compact=String(height<430);panel.dataset.tight=String(height<280);
+  panel.dataset.compact=String(height<500);panel.dataset.tight=String(height<280);
 }
 window.visualViewport?.addEventListener('resize',()=>{if(!$('chat-panel').hidden)fitChat();});
 window.visualViewport?.addEventListener('scroll',()=>{if(!$('chat-panel').hidden)fitChat();});
@@ -99,14 +100,14 @@ $('entry-form').addEventListener('submit',async event=>{
   event.preventDefault();if(entering||!$('entry-form').reportValidity())return;
   entering=true;$('enter').disabled=true;$('entry-error').textContent='';unlockAudio();prepareAudio();
   const name=$('name').value.trim(),room=$('room').value.trim();
-  chatHistory=new ChatHistory(mode==='bot'?'bilgisayar:'+name:room,name);chatNodes.clear();renderChatHistory();
+  chatHistory=new ChatHistory();chatNodes.clear();renderChatHistory();
   const Connection=mode==='bot'?LocalGame:TableConnection;
   const current=connection=new Connection({
     onState:snapshot=>{if(connection===current)receive(snapshot);},
     onMessage:message=>{if(connection===current)showMessage(message);},
     onHistory:messages=>{if(connection===current){if(chatHistory?.merge(messages).length)renderChatHistory();}},
     onError:message=>{if(connection===current)notice(message);},
-    onClose:message=>{if(connection===current)showLogin(message);},
+    onClose:(message,{tableClosed=false}={})=>{if(connection===current){if(tableClosed)chatHistory?.clear();showLogin(message);}},
     onPresence:online=>{if(connection!==current)return;present=online;document.body.classList.toggle('disconnected',!online);renderControls();}
   });
   try{
@@ -123,6 +124,7 @@ $('entry-form').addEventListener('submit',async event=>{
 });
 
 function receive(snapshot){
+  if(chatHistory?.bind(snapshot.chatId,connection?.token)){chatNodes.clear();renderChatHistory();}
   recordResult(snapshot.state);
   if(Number.isFinite(snapshot.serverNow))clockOffset=snapshot.serverNow-Date.now();
   queue.push(snapshot);
@@ -251,7 +253,7 @@ $('uno').onclick=()=>action('uno');$('lobby-ready').onclick=()=>action('ready');
 $('invite').onclick=async()=>{try{const url=new URL(location.href);url.searchParams.set('masa',state.name);url.searchParams.set('modo','group');await navigator.clipboard.writeText(url.href);notice('Masa bağlantısı kopyalandı.');}catch{notice('Bağlantı kopyalanamadı.');}};
 $('rematch').onclick=()=>action('ready');$('result-close').onclick=()=>$('result-dialog').close();
 $('discard').onclick=()=>{if(state?.phase==='finished')$('result-dialog').showModal();};
-$('leave').onclick=async()=>{const current=connection;$('leave').disabled=true;try{await current?.leave();if(connection===current)showLogin();}finally{$('leave').disabled=false;}};
+$('leave').onclick=async()=>{const current=connection;chatHistory?.clear();$('leave').disabled=true;try{await current?.leave();if(connection===current)showLogin();}finally{$('leave').disabled=false;}};
 $('chat-toggle').onclick=$('lobby-chat').onclick=event=>setChat($('chat-panel').hidden,false,event.detail===0);$('chat-close').onclick=()=>setChat(false);
 $('score-toggle').onclick=()=>setScores($('score-panel').hidden);$('score-close').onclick=()=>setScores(false);
 

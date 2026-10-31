@@ -41,7 +41,7 @@ export function cardLayoutChanged(previous,next,plan=planTransition(previous,nex
   if(!previous||plan.deal||plan.topChanged||plan.added.length||plan.removed.length)return true;
   if(previous.me!==next.me||previous.players.length!==next.players.length)return true;
   if(next.players.some((p,i)=>p.name!==previous.players[i].name||p.count!==previous.players[i].count))return true;
-  return next.players[next.me].hand.some((c,i)=>c.id!==previous.players[previous.me].hand[i]?.id);
+  return next.players[next.me].hand.some((c,i)=>{const old=previous.players[previous.me].hand[i];return c.id!==old?.id||c.value!==old?.value||c.color!==old?.color;});
 }
 
 export class TableMotion {
@@ -90,6 +90,11 @@ export class TableMotion {
         template.innerHTML=opponent?back():card(item.card,{button:true});
         slot.append(template.content.firstElementChild);
         map.set(item.key,slot);
+      }
+      if(item.card){
+        const signature=item.card.color+':'+item.card.value;
+        if(slot.dataset.face&&slot.dataset.face!==signature){const template=document.createElement('template');template.innerHTML=card(item.card,{button:true});slot.replaceChildren(template.content.firstElementChild);}
+        slot.dataset.face=signature;
       }
       slot.style.setProperty('--rotation',item.rotation+'deg');
       slot.style.setProperty('--offset',item.offset+'px');

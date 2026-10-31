@@ -89,11 +89,19 @@ test('a direct-only closing table delivers the named final event before its chan
 test('joining and reconnecting receive session chat with original names and sticker codes',async t=>{
  const {clients:[a,b]}=await table(t,2,{direct:false});await a.message({emote:'bmo-laugh'});await flush();b.joinHost();await flush();assert.equal(b.histories.at(-1)[0].text,'bmo-laugh');assert.equal(b.histories.at(-1)[0].name,'A');assert.ok(b.histories.at(-1)[0].at);
 });
+test('a later arrival and a subsequent host handoff never reveal an earlier groups conversation',async t=>{
+ const {clients:[a,b],transport,room}=await table(t,2,{direct:false});await a.message({text:'sadece ilk iki kişi'});await flush();const oldId=a.messages[0].id;
+ const histories=[],messages=[],c=new TableConnection({onState(){},onHistory:items=>histories.push(structuredClone(items)),onMessage:m=>messages.push(m)},{...transport,storage:memory()});t.after(()=>c.shutdown());await c.enter('C',room);await flush();
+ assert.deepEqual(histories.at(-1),[]);assert.equal(messages.some(m=>m.id===oldId),false);assert.equal(b.messages.some(m=>m.id===oldId),true);
+ await b.message({text:'üçümüz de buradayız'});await flush();c.joinHost();await flush();assert.deepEqual(histories.at(-1).map(m=>m.text),['üçümüz de buradayız']);
+ await a.leave();await new Promise(resolve=>setTimeout(resolve,260));b.tick();c.tick();await flush();b.tick();c.tick();await flush();
+ assert.equal(b.host,true);assert.equal(b.authority.messages.some(m=>m.id===oldId),false);assert.equal(histories.flat().some(m=>m.id===oldId),false);assert.equal(messages.some(m=>m.id===oldId),false);
+});
 test('a disconnected guest keeps its seat briefly then leaves by name so the other two can continue',async t=>{
  const {clients:[a,b,c]}=await table(t,3,{direct:false});await Promise.all([a,b,c].map(p=>p.action({type:'ready',round:0})));await flush();b.shutdown();
  const now=Date.now();a.now=()=>now+7000;a.links.get(c.token).seen=a.now();a.tick();await flush();assert.equal(a.authority.state.players.length,3);assert.equal(a.joined,false);
  a.now=()=>now+31000;a.links.get(c.token).seen=a.now();a.tick();await flush();assert.deepEqual(a.authority.state.players.map(p=>p.name),['A','C']);assert.equal(a.joined,true);assert.equal(c.messages.at(-1).text,'B masadan ayrıldı.');
 });
 test('production game bundle contains no HTTP game relay or polling loop',async()=>{
- const result=await build({entryPoints:['public/game.js'],bundle:true,write:false,metafile:true,format:'esm'});const files=Object.keys(result.metafile.inputs);assert.equal(files.some(f=>f.endsWith('relay-network.js')||f.endsWith('relay-api.js')),false);assert.ok(files.some(f=>f.endsWith('peer-table.js')));assert.ok(!result.outputFiles[0].text.includes('chatgpt.site/api/v1/'));assert.equal(tableSessionKey(' Masa '),'uno-v10:masa');
+ const result=await build({entryPoints:['public/game.js'],bundle:true,write:false,metafile:true,format:'esm'});const files=Object.keys(result.metafile.inputs);assert.equal(files.some(f=>f.endsWith('relay-network.js')||f.endsWith('relay-api.js')),false);assert.ok(files.some(f=>f.endsWith('peer-table.js')));assert.ok(!result.outputFiles[0].text.includes('chatgpt.site/api/v1/'));assert.equal(tableSessionKey(' Masa '),'uno-v11:masa');
 });

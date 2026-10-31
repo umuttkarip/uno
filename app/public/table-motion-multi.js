@@ -16,7 +16,7 @@ export class MultiTableMotion extends TableMotion {
   syncReveals(state){
     for(const [index,rival]of this.rivals){const known=(state.revealed??[]).filter(item=>item.player===index);let i=0;
       rival.container.setAttribute('aria-label',known.length?`${state.players[index].count} kart, ${known.length} kart açık`:`${state.players[index].count} kapalı kart`);
-      for(const slot of rival.nodes.values()){const item=known[i++],id=item?.card.id??'';if(slot.dataset.revealed!==id){slot.firstElementChild.innerHTML=item?face(item.card):face({color:'wild'},true);slot.dataset.revealed=id;}slot.classList.toggle('revealed-card',!!item);if(item){slot.setAttribute('role','img');slot.setAttribute('aria-label',state.players[index].name+' · '+COLOR_NAMES[item.card.color]+' '+(LABELS[item.card.value]??item.card.value));}else{slot.removeAttribute('role');slot.removeAttribute('aria-label');}}
+      for(const slot of rival.nodes.values()){const item=known[i++],id=item?[item.card.id,item.card.color,item.card.value].join(':'):'';if(slot.dataset.revealed!==id){slot.firstElementChild.innerHTML=item?face(item.card):face({color:'wild'},true);slot.dataset.revealed=id;}slot.classList.toggle('revealed-card',!!item);if(item){slot.setAttribute('role','img');slot.setAttribute('aria-label',state.players[index].name+' · '+COLOR_NAMES[item.card.color]+' '+(LABELS[item.card.value]??item.card.value));}else{slot.removeAttribute('role');slot.removeAttribute('aria-label');}}
     }
   }
   async update(previous,state,{present=true}={}){

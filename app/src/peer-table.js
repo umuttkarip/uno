@@ -3,11 +3,12 @@ import {storageKey,TABLE_PEER_PREFIX} from './environment.js';
 import {roomKey,validName} from './engine.js';
 import {RoomAuthority,IDLE_LIMIT} from './room.js';
 import {SocketBus} from './socket-bus.js';
+import {AdminBridge} from './admin-client.js';
 const read=(key,storage)=>{try{return JSON.parse(storage.getItem(key));}catch{return null;}};
 const save=(key,value,storage)=>{try{storage.setItem(key,JSON.stringify(value));}catch{}};
 const erase=(key,storage)=>{try{storage.removeItem(key);}catch{}};
 const ICE={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
-export const tableSessionKey=room=>storageKey('uno-v10:'+roomKey(room));
+export const tableSessionKey=room=>storageKey('uno-v11:'+roomKey(room));
 export class TableConnection {
   constructor(callbacks,{Peer:PeerType=Peer,Bus=SocketBus,now=Date.now,commandTimeout=2500,storage=globalThis.sessionStorage}={}){Object.assign(this,callbacks,{PeerType,Bus,now,commandTimeout,storage});this.closed=false;this.links=new Map();this.pending=new Map();this.receipts=new Map();this.seenMessages=new Set();this.retiredEpochs=new Set();this.sequence=0;this.lastSequence=-1;this.reconnects=0;this.version=0;this.nodeId=crypto.randomUUID();this.epoch=crypto.randomUUID();}
   async enter(name,room,{rules='classic'}={}){
@@ -27,6 +28,7 @@ export class TableConnection {
     peer.on('open',()=>{
       if(this.closed||peer!==this.peer)return;this.host=true;this.claimedAt=this.now();const saved=this.previous?.host?this.previous.saved:null;
       this.authority=new RoomAuthority(this.room,this.name,this.token,{saved,mode:'group',rules:this.rules});
+      this.admin=new AdminBridge(this.authority);
       for(const receipt of this.previous?.receipts??[])this.receipts.set(receipt.id,receipt);
       peer.on('connection',conn=>this.accept(conn));this.publish();this.onHistory?.(this.authority.messages);this.finishEntry();
     });
@@ -65,7 +67,7 @@ export class TableConnection {
       if(data.type==='pulse'&&!this.links.has(data.token)){const player=this.authority.state.players.find((p,i)=>i>0&&p.token===data.token);if(player)return this.hostMessage({...data,type:'join',name:player.name},source);}
       if(data.type==='join'){
         index=this.authority.join(data.name,data.token);if(index===0)throw Error('Bu oyuncu başka bir sekmede açık.');
-        link=this.links.get(data.token)??{};if(link.nodeId!==source.nodeId||data.recover){const old=link.direct;link.direct=null;old?.close();}Object.assign(link,{token:data.token,nodeId:source.nodeId,seen:this.now()});if(source.direct)link.direct=source.direct;this.links.set(data.token,link);this.publish();this.sendLink(link,{type:'history',messages:this.authority.messages});return;
+        link=this.links.get(data.token)??{};if(link.nodeId!==source.nodeId||data.recover){const old=link.direct;link.direct=null;old?.close();}Object.assign(link,{token:data.token,nodeId:source.nodeId,seen:this.now()});if(source.direct)link.direct=source.direct;this.links.set(data.token,link);this.publish();this.sendLink(link,{type:'history',chatId:this.authority.chatId,messages:this.authority.messages});return;
       }
       const token=source.token??data.token;link=this.links.get(token);if(!link||link.nodeId!==source.nodeId)return;link.seen=this.now();index=this.authority.state.players.findIndex(p=>p.token===token);if(index<1)return;
       if(data.type==='pulse'){this.sendLink(link,{type:'pulse'});return;}
@@ -103,7 +105,7 @@ export class TableConnection {
   sendState(link,ack){const index=this.authority.state.players.findIndex(p=>p.token===link.token);if(index<1)return;this.sendLink(link,{type:'state',...this.authority.snapshot(index),sequence:this.sequence,epoch:this.epoch,...(ack?{ack}:{})});}
   publish(ack,token){
     if(this.closed)return;this.syncPresence();this.sequence++;const own={...this.authority.snapshot(0),sequence:this.sequence,epoch:this.epoch};this.version=own.version;this.lastSnapshot=own;this.onState?.(own);
-    for(const link of this.links.values())this.sendState(link,link.token===token?ack:null);this.saveHost();
+    for(const link of this.links.values())this.sendState(link,link.token===token?ack:null);this.saveHost();this.admin?.observe();
   }
   receive(data){
     if(this.closed||!this.valid(data))return;this.lastHostSeen=this.now();
@@ -113,14 +115,14 @@ export class TableConnection {
       this.hostEpoch=data.epoch;this.lastSequence=data.sequence;this.joined=true;this.version=data.version;this.lastSnapshot=data;this.presence(data.state.players.every(p=>p.online));
       save(this.storageKey,{name:this.name,token:this.token,host:false,at:this.now()},this.storage);this.onState?.(data);this.finishEntry();
     }else if(data.type==='message')this.deliverMessage(data.message);
-    else if(data.type==='history')this.onHistory?.(data.messages??[]);
+    else if(data.type==='history'&&data.chatId===this.lastSnapshot?.chatId)this.onHistory?.(data.messages??[]);
     else if(data.type==='handoff')this.handoff(data);
     else if(data.type==='error'){if(data.ack)this.settle(data.ack,data.message);else if(this.rejectEntry)this.fail(data.message);else this.onError?.(data.message);}
     else if(data.type==='leave')this.finishClose(data.message??'Masa kapandı.');
   }
   deliverMessage(message){if(!message||this.seenMessages.has(message.id))return;this.seenMessages.add(message.id);if(this.seenMessages.size>100)this.seenMessages.delete(this.seenMessages.values().next().value);this.onMessage?.(message);}
   async action(command){if(this.closed||!this.joined)throw Error('Bağlantı yenileniyor.');if(this.host){this.authority.play(0,command,this.version);this.publish();}else return this.command({type:'action',command,version:this.version});}
-  async message(message){if(this.closed||!this.joined)throw Error('Bağlantı yenileniyor.');if(this.host){this.broadcastMessage(this.authority.message(0,message));this.saveHost();}else return this.command({type:'message',message});}
+  async message(message){if(this.closed||!this.joined)throw Error('Bağlantı yenileniyor.');if(this.host){const revision=this.authority.revision;this.broadcastMessage(this.authority.message(0,message));if(this.authority.revision!==revision)this.publish();else this.saveHost();}else return this.command({type:'message',message});}
   command(data){const id=crypto.randomUUID();return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{this.settle(id,'Bağlantı yenileniyor.');this.presence(false);this.recover();},this.commandTimeout);this.pending.set(id,{resolve,reject,timer});if(!this.sendHost({...data,id,token:this.token})){this.settle(id,'Bağlantı yenileniyor.');this.recover();}});}
   settle(id,error){const pending=this.pending.get(id);if(!pending)return;clearTimeout(pending.timer);this.pending.delete(id);error?pending.reject(Error(error)):pending.resolve();}
   tick(){
@@ -141,8 +143,9 @@ export class TableConnection {
   finishEntry(){clearTimeout(this.entryTimer);this.resolveEntry?.();this.resolveEntry=null;this.rejectEntry=null;}
   fail(message){if(this.closed)return;const reject=this.rejectEntry;this.rejectEntry=null;this.resolveEntry=null;this.shutdown();if(reject)reject(Error(message));else this.onClose?.(message);}
   finishClose(message,broadcast=false){
+    this.admin?.observe(true);
     if(broadcast){if(this.finishing)return;this.finishing=true;for(const link of this.links.values())this.sendLink(link,{type:'leave',message});this.closeTimer=setTimeout(()=>this.finishClose(message),100);return;}
-    this.shutdown();erase(this.storageKey,this.storage);this.onClose?.(message);
+    this.shutdown();erase(this.storageKey,this.storage);this.onClose?.(message,{tableClosed:true});
   }
   async leave(){
     if(this.closed)return;
@@ -150,10 +153,10 @@ export class TableConnection {
       this.handingOff=true;const message=this.authority.leave(0),s=this.authority.state;
       const packet={type:'handoff',id:crypto.randomUUID(),next:s.players[0].token,saved:structuredClone(this.authority.checkpoint()),receipts:[...this.receipts.values()]};
       for(const link of this.links.values()){this.sendLink(link,{type:'message',message});this.sendLink(link,packet);}
-    }else if(this.host){this.broadcastMessage({id:crypto.randomUUID(),name:this.name,text:`${this.name} masadan ayrıldı.`,system:true,at:this.now()});for(const link of this.links.values())this.sendLink(link,{type:'leave',message:`${this.name} masadan ayrıldı.`});}
+    }else if(this.host){this.admin?.observe(true);this.broadcastMessage({id:crypto.randomUUID(),name:this.name,text:`${this.name} masadan ayrıldı.`,system:true,at:this.now()});for(const link of this.links.values())this.sendLink(link,{type:'leave',message:`${this.name} masadan ayrıldı.`});}
     else this.sendHost({type:'leave',token:this.token});
     // Allow the queued departure/handoff frame to leave before closing its channel.
     await new Promise(resolve=>setTimeout(resolve,100));this.shutdown();erase(this.storageKey,this.storage);
   }
-  shutdown(){if(this.closed)return;this.closed=true;for(const key of ['clock','entryTimer','connectTimer','signalTimer','claimTimer','closeTimer'])clearInterval(this[key]);for(const id of this.pending.keys())this.settle(id,'Bağlantı kesildi.');this.bus?.close();for(const link of this.links.values())link.direct?.close();this.conn?.close();this.peer?.destroy();globalThis.window?.removeEventListener('online',this.restore);globalThis.window?.removeEventListener('pageshow',this.restore);globalThis.document?.removeEventListener('visibilitychange',this.restore);}
+  shutdown(){if(this.closed)return;this.closed=true;this.admin?.stop();for(const key of ['clock','entryTimer','connectTimer','signalTimer','claimTimer','closeTimer'])clearInterval(this[key]);for(const id of this.pending.keys())this.settle(id,'Bağlantı kesildi.');this.bus?.close();for(const link of this.links.values())link.direct?.close();this.conn?.close();this.peer?.destroy();globalThis.window?.removeEventListener('online',this.restore);globalThis.window?.removeEventListener('pageshow',this.restore);globalThis.document?.removeEventListener('visibilitychange',this.restore);}
 }

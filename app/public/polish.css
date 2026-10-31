@@ -151,12 +151,14 @@ body.themed-table{background-image:var(--table-art-wide);background-size:cover;b
 body.themed-table:before{display:none}
 body.themed-table .header,body.themed-table .player-name{text-shadow:0 1px 3px #071a16}
 @media(max-aspect-ratio:3/4){body.themed-table{background-image:var(--table-art-portrait)}}
-.chat-panel{--chat-gap:8px;display:flex;flex-direction:column;gap:var(--chat-gap);width:min(376px,calc(100vw - 24px));height:min(580px,calc(var(--chat-visible-height,100dvh) - 90px));padding:10px 12px 12px;bottom:calc(66px + var(--chat-keyboard-offset,0px));right:12px;max-height:calc(var(--chat-visible-height,100dvh) - 90px);overflow:hidden;border-radius:13px;background:var(--panel,#16382e);box-shadow:0 10px 30px #031b1440}
+.chat-panel{--chat-gap:8px;--sticker-size:clamp(44px,calc((var(--chat-visible-height,100dvh) - 390px)/4),64px);display:flex;flex-direction:column;gap:var(--chat-gap);width:min(400px,calc(100vw - 24px));height:min(640px,calc(var(--chat-visible-height,100dvh) - 90px));padding:10px 12px 12px;bottom:calc(66px + var(--chat-keyboard-offset,0px));right:12px;max-height:calc(var(--chat-visible-height,100dvh) - 90px);overflow:hidden;border-radius:13px;background:var(--panel,#16382e);box-shadow:0 10px 30px #031b1440}
 .chat-heading{grid-area:heading;margin:0;padding:0;font-size:12px;min-height:26px}
 .chat-heading .icon-button{width:28px;height:28px;padding:6px}
-.stickers{grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
-.sticker-choice{height:48px;min-height:44px;padding:2px;border:0;border-radius:7px;background:transparent}
-.sticker-choice img{width:100%;height:44px;max-width:56px;object-fit:contain}
+.stickers{display:flex;flex-direction:column;gap:8px}
+.sticker-group{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
+.bmo-stickers{grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #cfdecc26;padding-top:8px}
+.sticker-choice{height:var(--sticker-size);min-height:44px;padding:2px;border:0;border-radius:7px;background:transparent}
+.sticker-choice img{width:100%;height:calc(var(--sticker-size) - 4px);max-width:88px;object-fit:contain}
 .sticker-choice:active{background:#e2ead614}
 .emotes{grid-template-columns:repeat(8,minmax(0,1fr));gap:0;margin:4px 0 0;padding-top:4px;border-top:1px solid #cfdecc18}
 .emotes button{min-height:36px;padding:4px}
@@ -183,13 +185,12 @@ body.themed-table .header,body.themed-table .player-name{text-shadow:0 1px 3px #
 .chat-entry.own .chat-content{background:#d4e3cd18;border-radius:10px 4px 10px 10px}
 .chat-sticker .chat-content,.chat-emote .chat-content,.chat-entry.own.chat-sticker .chat-content,.chat-entry.own.chat-emote .chat-content{background:transparent;padding:0 4px}
 .chat-content img{display:block;object-fit:contain}
-.chat-sticker img{width:88px;height:78px}.chat-emote img{width:40px;height:40px}
+.chat-sticker img{width:116px;height:100px}.chat-emote img{width:40px;height:40px}
 .chat-entry.system{align-self:center;max-width:100%;text-align:center;color:#c5d3bd;font-size:11px;line-height:1.45;padding:4px 0}
 .system-message{background:transparent!important;box-shadow:none;color:#edf1e3;font-size:12px;padding:3px 0}
-.new-messages{position:absolute;align-self:center;bottom:204px;background:var(--panel,#16382e);border:1px solid #d5dfc744;border-radius:14px;padding:5px 12px;font-size:11px}
+.new-messages{align-self:center;flex:none;background:var(--panel,#16382e);border:1px solid #d5dfc744;border-radius:14px;padding:5px 12px;font-size:11px}
 #chat-toggle,#lobby-chat{position:relative}#chat-toggle.has-unread:after,#lobby-chat.has-unread:after{content:"";position:absolute;right:5px;top:5px;width:5px;height:5px;border-radius:50%;background:#eef2db}
-@media(max-width:380px){.chat-panel .stickers{grid-template-columns:repeat(5,minmax(0,1fr))}.new-messages{bottom:250px}}
-@media(max-height:480px) and (min-width:600px){.chat-panel{width:min(640px,calc(100vw - 24px));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:28px minmax(64px,1fr) 44px;bottom:calc(10px + var(--chat-keyboard-offset,0px));height:calc(var(--chat-visible-height,100dvh) - 20px);max-height:calc(var(--chat-visible-height,100dvh) - 20px)}.chat-heading,#chat-form{grid-column:1/-1}.chat-history{height:100%;min-height:0}.chat-reactions{align-self:center}.chat-panel .stickers{grid-template-columns:repeat(5,minmax(0,1fr))}.chat-panel .sticker-choice{height:44px}.chat-panel .sticker-choice img{height:40px}.new-messages{left:40px;bottom:64px}}
+@media(max-height:480px) and (min-width:600px){.chat-panel{width:min(640px,calc(100vw - 24px));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:28px minmax(64px,1fr) 44px;bottom:calc(10px + var(--chat-keyboard-offset,0px));height:calc(var(--chat-visible-height,100dvh) - 20px);max-height:calc(var(--chat-visible-height,100dvh) - 20px)}.chat-heading,#chat-form{grid-column:1/-1}.chat-history{height:100%;min-height:0}.chat-reactions{align-self:center}.chat-panel .sticker-choice{height:44px}.chat-panel .sticker-choice img{height:40px}.chat-panel .new-messages{position:absolute;left:40px;bottom:64px}}
 @media(max-width:599px){.chat-panel[data-compact="true"] .chat-reactions{display:none}}
 @media(max-width:700px){.design-preview .player-name,.design-preview .match[data-seats] .opponent-zone .player-name{font-size:12px}}
 @media(max-width:360px){.design-preview .match[data-seats="6"] .opponent-zone .player-name{font-size:10px;gap:3px}.design-preview .match[data-seats="6"] .uno-mark{font-size:8px}}

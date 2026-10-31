@@ -1,5 +1,6 @@
 import {act, newPlayer, newRoom, startRound, validName, view,penalizeUno,removePlayer} from './engine.js';
 import {CHAT_LIMIT,chatMessage} from './chat-history.js';
+import {DEFAULT_FEATURES,kissWild4} from './privileges.js';
 
 export const IDLE_LIMIT = 20 * 60 * 1000;
 export const TURN_DURATION = 30 * 1000;
@@ -15,6 +16,9 @@ export class RoomAuthority {
     this.revision = saved?.revision ?? 0;
     this.lastActive = saved?.lastActive ?? now();
     this.lastMessages = new Map();
+    this.chatId=saved?.chatId??crypto.randomUUID();
+    this.reportKey=saved?.reportKey??crypto.randomUUID();
+    this.features={...DEFAULT_FEATURES,...saved?.features};
     this.messages=(saved?.messages??[]).map(chatMessage).filter(Boolean).slice(-CHAT_LIMIT);
     this.remaining = saved?.remaining ?? null;
     this.state.turnDeadline ??= null;
@@ -37,6 +41,9 @@ export class RoomAuthority {
     if (this.state.phase!=='waiting') throw new Error('Bu masada oyun başladı.');
     if (this.state.players.some(p=>name.trim().toLocaleLowerCase('tr-TR') === p.name.toLocaleLowerCase('tr-TR'))) throw new Error('Farklı bir ad yaz.');
     const player=newPlayer(name, token);this.state.players.push(player);
+    // Existing players retain their own local history. A new participant receives
+    // only messages sent after joining, never a previous group's conversation.
+    this.messages=[];
     if(this.state.mode!=='group'&&this.state.players.length===this.state.capacity){startRound(this.state);this.restartTurn();}
     this.revision++;
     this.touch();
@@ -65,6 +72,7 @@ export class RoomAuthority {
     if (!emote && (typeof text !== 'string' || !text.trim() || [...text.trim()].length > 120)) throw new Error('Mesaj 1–120 karakter olmalı.');
     this.lastMessages.set(index, this.now());
     this.touch();
+    if(!emote&&kissWild4(this.state,index,text,this.features))this.revision++;
     return this.rememberMessage({id: crypto.randomUUID(), player: index, name: this.state.players[index].name, text: emote || text.trim().replace(/[\x00-\x1f]/g, ' '), emote: !!emote,at:this.now()});
   }
 
@@ -104,8 +112,8 @@ export class RoomAuthority {
   expireUno() {
     return penalizeUno(this.state);
   }
-  snapshot(index) {return {state: structuredClone(view(this.state, index)), version: this.revision, serverNow:this.now()};}
-  checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining,messages:this.messages};}
+  snapshot(index) {return {state: structuredClone(view(this.state, index)), version: this.revision, serverNow:this.now(),chatId:this.chatId};}
+  checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining,messages:this.messages,chatId:this.chatId,reportKey:this.reportKey,features:this.features};}
   touch() {this.lastActive = this.now();}
   expired() {return this.now() - this.lastActive >= IDLE_LIMIT;}
 }
