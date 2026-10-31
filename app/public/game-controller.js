@@ -10,18 +10,22 @@ import {EXPRESSIONS,expression,expressionImage,preloadExpressions} from './expre
 import {mountAppearance} from './appearance.js';
 import {readStats,rememberPlayer,recordResult} from '../src/scores.js';
 import {storageKey} from '../src/environment.js';
+import {ChatHistory} from '../src/chat-history.js';
 
 const $=id=>document.getElementById(id);
 let connection,state,busy=false,entering=false,moving=false,pendingCard,pendingPlay,resultRound=-1;
 let present=true,suppressClickUntil=0,clockOffset=0,processing=false,generation=0;
 let queue=[],chatAnimation,chatGeneration=0,chatReady=false,sending=false;
 let restylePending=false;
+let chatHistory;
+const chatNodes=new Map();
 const messageTimers=new Set();
 const roomParam=new URL(location.href).searchParams.get('masa');
 let mode=new URL(location.href).searchParams.get('modo')==='bot'?'bot':'group';
 let rules=new URL(location.href).searchParams.get('rules')==='special'?'special':'classic';
 if(roomParam)$('room').value=roomParam;
 $('deck-face').innerHTML=back();
+$('lobby-chat').innerHTML=$('chat-toggle').innerHTML;
 const seats={top:{zone:$('opponent-zone-top'),name:$('opponent-name'),hand:$('opponent-hand')},left:{zone:$('opponent-zone-left'),name:$('left-name'),hand:$('left-hand')},right:{zone:$('opponent-zone-right'),name:$('right-name'),hand:$('right-hand')},upperLeft:{zone:$('opponent-zone-upper-left'),name:$('upper-left-name'),hand:$('upper-left-hand')},upperRight:{zone:$('opponent-zone-upper-right'),name:$('upper-right-name'),hand:$('upper-right-hand')}};
 const motion=new MultiTableMotion({hand:$('hand'),seats,discard:$('discard'),deck:$('draw'),scroll:$('hand-scroll')});
 function restyle(){if(moving){restylePending=true;return;}$('deck-face').innerHTML=back();if(state)motion.restyle(state);restylePending=false;}
@@ -61,12 +65,14 @@ window.addEventListener('resize',()=>{if(!$('chat-panel').hidden)fitChat();});
 function setChat(open,instant=false,focusInput=false){
   const version=++chatGeneration;
   chatAnimation?.cancel();
-  $('chat-toggle').setAttribute('aria-expanded',String(open));
+  for(const id of ['chat-toggle','lobby-chat'])$(id).setAttribute('aria-expanded',String(open));
   const panel=$('chat-panel');
   if(open){
     prepareChat();
     fitChat();
     panel.hidden=false;
+    for(const id of ['chat-toggle','lobby-chat'])$(id).classList.remove('has-unread');
+    requestAnimationFrame(()=>scrollChat());
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)chatAnimation=panel.animate([{opacity:0,transform:'translateY(7px) scale(.98)'},{opacity:1,transform:'none'}],{duration:180,easing:'cubic-bezier(.22,.8,.25,1)'});
     if(focusInput)$('message').focus({preventScroll:true});
   }else if(!instant&&!panel.hidden&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -78,10 +84,10 @@ function setChat(open,instant=false,focusInput=false){
 
 function showLogin(message=''){
   generation++;queue=[];processing=false;
-  connection?.shutdown();connection=null;state=null;busy=false;entering=false;moving=false;sending=false;pendingCard=null;pendingPlay=null;present=true;resultRound=-1;
+  connection?.shutdown();connection=null;state=null;chatHistory=null;busy=false;entering=false;moving=false;sending=false;pendingCard=null;pendingPlay=null;present=true;resultRound=-1;
   motion.reset();
   $('login').hidden=false;$('match').hidden=true;$('match').dataset.motion='settled';$('leave').hidden=true;$('enter').disabled=false;$('entry-error').textContent=message;
-  $('score-toggle').hidden=true;setScores(false);
+  $('score-toggle').hidden=true;$('lobby-chat').hidden=true;setScores(false);
   document.body.dataset.players='0';
   appearance.setBusy(false);renderHistory();
   document.body.classList.remove('disconnected');
@@ -93,10 +99,12 @@ $('entry-form').addEventListener('submit',async event=>{
   event.preventDefault();if(entering||!$('entry-form').reportValidity())return;
   entering=true;$('enter').disabled=true;$('entry-error').textContent='';unlockAudio();prepareAudio();
   const name=$('name').value.trim(),room=$('room').value.trim();
+  chatHistory=new ChatHistory(mode==='bot'?'bilgisayar:'+name:room,name);chatNodes.clear();renderChatHistory();
   const Connection=mode==='bot'?LocalGame:TableConnection;
   const current=connection=new Connection({
     onState:snapshot=>{if(connection===current)receive(snapshot);},
     onMessage:message=>{if(connection===current)showMessage(message);},
+    onHistory:messages=>{if(connection===current){if(chatHistory?.merge(messages).length)renderChatHistory();}},
     onError:message=>{if(connection===current)notice(message);},
     onClose:message=>{if(connection===current)showLogin(message);},
     onPresence:online=>{if(connection!==current)return;present=online;document.body.classList.toggle('disconnected',!online);renderControls();}
@@ -128,7 +136,7 @@ async function drain(){
     const previous=state;state=snapshot.state;
     if(!state)continue;
     $('login').hidden=true;$('match').hidden=false;$('leave').hidden=false;
-    if(previous&&previous.round!==state.round)$('result-dialog').close();
+    if(previous&&(previous.round!==state.round||state.phase!=='finished'))$('result-dialog').close();
     if(pendingPlay&&!state.playable.includes(pendingPlay.cardId))cancelPlay();
     setRules(state.rules??'classic');$('rules-label').hidden=rules!=='special';
     const events=feedback(previous,state);
@@ -166,7 +174,7 @@ function renderControls(){
   playerName($('self-name'),self,mine);
   for(const [seat,dom]of Object.entries(seats)){const index=placements.find(p=>p.seat===seat)?.index,p=state.players[index];dom.zone.hidden=!p;playerName(dom.name,p,playing&&state.turn===index);}
   $('waiting-text').textContent=state.players.length<2?'1 oyuncu daha bekleniyor':`${state.players.length} oyuncu`;
-  $('waiting').hidden=state.phase!=='waiting';$('piles').hidden=state.phase==='waiting';
+  $('lobby-chat').hidden=state.phase!=='waiting';$('waiting').hidden=state.phase!=='waiting';$('piles').hidden=state.phase==='waiting';
   if(state.phase==='waiting')renderLobby();
   $('lobby-ready').disabled=self.ready||blocked;$('lobby-ready').textContent=self.ready?'Hazır':'Hazırım';$('lobby-ready').setAttribute('aria-pressed',String(self.ready));
   $('draw').disabled=!ui.canDraw;
@@ -243,15 +251,15 @@ $('uno').onclick=()=>action('uno');$('lobby-ready').onclick=()=>action('ready');
 $('invite').onclick=async()=>{try{const url=new URL(location.href);url.searchParams.set('masa',state.name);url.searchParams.set('modo','group');await navigator.clipboard.writeText(url.href);notice('Masa bağlantısı kopyalandı.');}catch{notice('Bağlantı kopyalanamadı.');}};
 $('rematch').onclick=()=>action('ready');$('result-close').onclick=()=>$('result-dialog').close();
 $('discard').onclick=()=>{if(state?.phase==='finished')$('result-dialog').showModal();};
-$('leave').onclick=()=>{connection?.leave();showLogin();};
-$('chat-toggle').onclick=event=>setChat($('chat-panel').hidden,false,event.detail===0);$('chat-close').onclick=()=>setChat(false);
+$('leave').onclick=async()=>{const current=connection;$('leave').disabled=true;try{await current?.leave();if(connection===current)showLogin();}finally{$('leave').disabled=false;}};
+$('chat-toggle').onclick=$('lobby-chat').onclick=event=>setChat($('chat-panel').hidden,false,event.detail===0);$('chat-close').onclick=()=>setChat(false);
 $('score-toggle').onclick=()=>setScores($('score-panel').hidden);$('score-close').onclick=()=>setScores(false);
 
 async function sendMessage(payload){
   if(!connection||!state||sending)return;
   const current=connection;
   sending=true;updateSend();
-  try{await current.message(payload);if(connection===current){setChat(false);$('message').value='';}}
+  try{await current.message(payload);if(connection===current){$('message').value='';scrollChat();}}
   catch(error){if(connection===current)notice(error.message);}
   finally{if(connection===current){sending=false;updateSend();}}
 }
@@ -260,6 +268,11 @@ $('message').addEventListener('input',updateSend);
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('message').value.trim();if(text)void sendMessage({text});};
 for(const id of ['emotes','stickers'])$(id).onclick=event=>{const emote=event.target.closest('[data-emote]')?.dataset.emote;if(emote)void sendMessage({emote});};
 function showMessage(message){
+  if(!message.private&&!message.uno&&chatHistory){
+    if(!chatHistory.merge([message]).length)return;
+    renderChatHistory();if($('chat-panel').hidden)for(const id of ['chat-toggle','lobby-chat'])$(id).classList.add('has-unread');
+  }
+  if(message.system){showSystemBubble(message.text);return;}
   const sender=messageSender(message,state);if(!sender)return;
   const item=message.emote?expression(message.text):null;
   const bubble=document.createElement('div');bubble.className='message'+(sender.own?' own':'')+(item?' is-emote':'')+(item?.sticker?' is-sticker':'')+(message.private?' private-message':'')+(message.uno?' uno-message':'');
@@ -271,8 +284,34 @@ function showMessage(message){
   const timer=setTimeout(()=>{messageTimers.delete(timer);bubble.classList.add('out');const end=setTimeout(()=>{messageTimers.delete(end);bubble.remove();},280);messageTimers.add(end);},5000);messageTimers.add(timer);
 }
 
+function scrollChat(){const log=$('chat-history');log.scrollTop=log.scrollHeight;$('new-messages').hidden=true;}
+$('new-messages').onclick=scrollChat;
+$('chat-history').addEventListener('scroll',()=>{const log=$('chat-history');if(log.scrollHeight-log.scrollTop-log.clientHeight<40)$('new-messages').hidden=true;});
+function renderChatHistory(){
+  const log=$('chat-history'),bottom=log.scrollHeight-log.scrollTop-log.clientHeight<48,position=log.scrollTop;
+  const nodes=(chatHistory?.items??[]).map(message=>{
+    if(chatNodes.has(message.id))return chatNodes.get(message.id);
+    const row=document.createElement('div');row.className='chat-entry'+(message.name===$('name').value.trim()?' own':'')+(message.system?' system':'');row.dataset.messageId=message.id;
+    chatNodes.set(message.id,row);
+    if(message.system){row.textContent=message.text;return row;}
+    const meta=document.createElement('div'),name=document.createElement('strong'),time=document.createElement('time');meta.className='chat-meta';name.textContent=message.name;time.dateTime=new Date(message.at).toISOString();time.textContent=new Date(message.at).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});meta.append(name,time);row.append(meta);
+    const item=message.emote?expression(message.text):null,content=document.createElement('div');content.className='chat-content';
+    if(item){content.innerHTML=expressionImage(message.text);row.classList.add(item.sticker?'chat-sticker':'chat-emote');}else content.textContent=message.text;
+    row.append(content);return row;
+  });
+  if(!nodes.length){const empty=document.createElement('p');empty.className='chat-empty';empty.textContent='Henüz mesaj yok.';nodes.push(empty);}
+  for(let i=0;i<nodes.length;i++)if(log.children[i]!==nodes[i])log.insertBefore(nodes[i],log.children[i]??null);
+  while(log.children.length>nodes.length)log.lastElementChild.remove();
+  for(const id of chatNodes.keys())if(!chatHistory?.ids.has(id))chatNodes.delete(id);
+  if(bottom)scrollChat();else{log.scrollTop=position;$('new-messages').hidden=false;}
+}
+function showSystemBubble(text){
+  const bubble=document.createElement('div');bubble.className='message system-message';bubble.textContent=text;$('messages').append(bubble);
+  const timer=setTimeout(()=>{messageTimers.delete(timer);bubble.remove();},5000);messageTimers.add(timer);
+}
+
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){setChat(false);setScores(false);}});
-document.addEventListener('pointerdown',event=>{if(!$('chat-panel').hidden&&!$('chat-panel').contains(event.target)&&!$('chat-toggle').contains(event.target))setChat(false);if(!$('score-panel').hidden&&!$('score-panel').contains(event.target)&&!$('score-toggle').contains(event.target))setScores(false);});
+document.addEventListener('pointerdown',event=>{if(!$('chat-panel').hidden&&!$('chat-panel').contains(event.target)&&!$('chat-toggle').contains(event.target)&&!$('lobby-chat').contains(event.target))setChat(false);if(!$('score-panel').hidden&&!$('score-panel').contains(event.target)&&!$('score-toggle').contains(event.target))setScores(false);});
 let drag;
 $('hand-scroll').addEventListener('pointerdown',event=>{if(event.pointerType!=='mouse'||event.button!==0)return;drag={x:event.clientX,scroll:$('hand-scroll').scrollLeft,moved:false};});
 window.addEventListener('pointermove',event=>{if(!drag)return;const delta=event.clientX-drag.x;if(Math.abs(delta)>6)drag.moved=true;if(drag.moved){$('hand-scroll').classList.add('dragging');$('hand-scroll').scrollLeft=drag.scroll-delta;event.preventDefault();}},{passive:false});

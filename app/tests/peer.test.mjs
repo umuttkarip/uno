@@ -20,7 +20,7 @@ function transports({direct=true,bus=true}={}){
 }
 async function table(t,n=2,options={},rules='classic'){
  const transport=transports(options),clients=[],room=crypto.randomUUID();
- for(let i=0;i<n;i++){const states=[],messages=[],errors=[],storage=memory(),client=new TableConnection({onState:s=>states.push(s),onMessage:m=>messages.push(m),onError:e=>errors.push(e)},{...transport,storage,commandTimeout:40});t.after(()=>client.shutdown());Object.assign(client,{states,messages,errors});await client.enter(String.fromCharCode(65+i),room,{rules});clients.push(client);}
+ for(let i=0;i<n;i++){const states=[],messages=[],histories=[],closes=[],errors=[],storage=memory(),client=new TableConnection({onState:s=>states.push(s),onMessage:m=>messages.push(m),onHistory:items=>histories.push(structuredClone(items)),onClose:m=>closes.push(m),onError:e=>errors.push(e)},{...transport,storage,commandTimeout:40});t.after(()=>client.shutdown());Object.assign(client,{states,messages,histories,closes,errors});await client.enter(String.fromCharCode(65+i),room,{rules});clients.push(client);}
  await flush();return {clients,host:clients[0],room,transport};
 }
 for(const [name,options]of [['direct',{bus:false}],['persistent socket',{direct:false}],['both',{}]])test(`${name} transport joins and unanimously starts without HTTP actions`,async t=>{
@@ -36,7 +36,7 @@ for(const n of [2,3,6])for(const rules of ['classic','special'])test(`${n}-playe
 });
 test('duplicate socket commands and message copies apply once, preserving names after a lobby departure',async t=>{
  const {clients:[a,b,c],host}=await table(t,3,{direct:false});b.leave();await flush();assert.deepEqual(host.authority.state.players.map(p=>p.name),['A','C']);
- await c.message({text:'merhaba'});await flush();assert.equal(a.messages.length,1);assert.equal(a.messages[0].name,'C');c.receive({type:'message',message:a.messages[0]});assert.equal(c.messages.length,1);
+ assert.equal(a.messages[0].text,'B masadan ayrıldı.');await c.message({text:'merhaba'});await flush();assert.equal(a.messages.length,2);assert.equal(a.messages[1].name,'C');c.receive({type:'message',message:a.messages[1]});assert.equal(c.messages.length,2);
  await Promise.all([a.action({type:'ready',round:0}),c.action({type:'ready',round:0})]);await flush();host.authority.state.turn=1;host.publish();await flush();
  const before=host.authority.state.players[1].hand.length,command={type:'action',command:{type:'draw'},version:c.version,id:crypto.randomUUID(),token:c.token};
  host.hostMessage(command,{nodeId:c.nodeId});host.hostMessage(command,{nodeId:c.nodeId});await flush();assert.equal(host.authority.state.players[1].hand.length,before+1);
@@ -67,6 +67,33 @@ test('MQTT frames decode partial and concatenated packets without duplicate subs
  const sent=[],received=[],link={buffer:new Uint8Array(),socket:{send:p=>sent.push(p)},timeout:null},bus=new SocketBus({topic:'qa',onMessage:m=>received.push(m)});
  const topic=[0,2,113,97],payload=new TextEncoder().encode('{"x":1}'),packet=mqttPacket(0x30,[...topic,...payload]);bus.receive(link,packet.subarray(0,4));assert.equal(received.length,0);bus.receive(link,new Uint8Array([...packet.subarray(4),...packet]));assert.deepEqual(received,[{x:1},{x:1}]);assert.equal(sent.length,0);bus.close();
 });
+
+for(const options of [{direct:false},{bus:false},{}])test(`host departure transfers the same live hand and chat (${JSON.stringify(options)})`,async t=>{
+ const {clients:[a,b,c]}=await table(t,3,options,'special');await Promise.all([a,b,c].map(p=>p.action({type:'ready',round:0})));await flush();
+ a.authority.state.players[1].wins=4;a.authority.state.turn=1;a.publish();await flush();await a.message({text:'devam'});await flush();
+ const hands=a.authority.state.players.slice(1).map(p=>p.hand.map(c=>c.id)),oldState=structuredClone(c.lastSnapshot);
+ await a.leave();await new Promise(resolve=>setTimeout(resolve,260));b.tick();c.tick();await flush();b.tick();c.tick();await flush();
+ assert.equal(b.host,true);assert.equal(b.authority.state.phase,'playing');assert.deepEqual(b.authority.state.players.map(p=>p.name),['B','C']);assert.deepEqual(b.authority.state.players.map(p=>p.hand.map(c=>c.id)),hands);assert.equal(b.authority.state.players[0].wins,4);
+ assert.equal(c.lastSnapshot.state.me,1);assert.equal(c.lastSnapshot.state.players.length,2);assert.equal(b.authority.messages[0].text,'devam');assert.equal(b.authority.messages.at(-1).text,'A masadan ayrıldı.');
+ c.receive({...oldState,type:'state'});assert.equal(c.lastSnapshot.state.players.length,2);await b.action({type:'draw'});await flush();assert.equal(b.authority.state.players[0].hand.length,hands[0].length+1);
+});
+test('a guest can leave a live game without resetting remaining hands, and a two-player departure names the player',async t=>{
+ const {clients:[a,b,c]}=await table(t,3,{direct:false});await Promise.all([a,b,c].map(p=>p.action({type:'ready',round:0})));await flush();
+ a.authority.state.turn=1;a.publish();await flush();await b.leave();await flush();assert.equal(a.closed,false);assert.equal(a.authority.state.players[1].name,'C');assert.equal(c.lastSnapshot.state.me,1);assert.equal(a.authority.state.turn,1);
+ await c.action({type:'draw'});await flush();await c.leave();await new Promise(resolve=>setTimeout(resolve,30));assert.deepEqual(a.closes,['C masadan ayrıldı.']);
+});
+test('a direct-only closing table delivers the named final event before its channels are closed',async t=>{
+ const {clients:[a,b]}=await table(t,2,{bus:false});await Promise.all([a,b].map(c=>c.action({type:'ready',round:0})));await flush();
+ await b.leave();await new Promise(resolve=>setTimeout(resolve,30));assert.deepEqual(a.closes,['B masadan ayrıldı.']);assert.equal(a.messages.at(-1).text,'B masadan ayrıldı.');
+});
+test('joining and reconnecting receive session chat with original names and sticker codes',async t=>{
+ const {clients:[a,b]}=await table(t,2,{direct:false});await a.message({emote:'bmo-laugh'});await flush();b.joinHost();await flush();assert.equal(b.histories.at(-1)[0].text,'bmo-laugh');assert.equal(b.histories.at(-1)[0].name,'A');assert.ok(b.histories.at(-1)[0].at);
+});
+test('a disconnected guest keeps its seat briefly then leaves by name so the other two can continue',async t=>{
+ const {clients:[a,b,c]}=await table(t,3,{direct:false});await Promise.all([a,b,c].map(p=>p.action({type:'ready',round:0})));await flush();b.shutdown();
+ const now=Date.now();a.now=()=>now+7000;a.links.get(c.token).seen=a.now();a.tick();await flush();assert.equal(a.authority.state.players.length,3);assert.equal(a.joined,false);
+ a.now=()=>now+31000;a.links.get(c.token).seen=a.now();a.tick();await flush();assert.deepEqual(a.authority.state.players.map(p=>p.name),['A','C']);assert.equal(a.joined,true);assert.equal(c.messages.at(-1).text,'B masadan ayrıldı.');
+});
 test('production game bundle contains no HTTP game relay or polling loop',async()=>{
- const result=await build({entryPoints:['public/game.js'],bundle:true,write:false,metafile:true,format:'esm'});const files=Object.keys(result.metafile.inputs);assert.equal(files.some(f=>f.endsWith('relay-network.js')||f.endsWith('relay-api.js')),false);assert.ok(files.some(f=>f.endsWith('peer-table.js')));assert.ok(!result.outputFiles[0].text.includes('chatgpt.site/api/v1/'));assert.equal(tableSessionKey(' Masa '),'uno-v9:masa');
+ const result=await build({entryPoints:['public/game.js'],bundle:true,write:false,metafile:true,format:'esm'});const files=Object.keys(result.metafile.inputs);assert.equal(files.some(f=>f.endsWith('relay-network.js')||f.endsWith('relay-api.js')),false);assert.ok(files.some(f=>f.endsWith('peer-table.js')));assert.ok(!result.outputFiles[0].text.includes('chatgpt.site/api/v1/'));assert.equal(tableSessionKey(' Masa '),'uno-v10:masa');
 });

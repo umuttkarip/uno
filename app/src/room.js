@@ -1,9 +1,10 @@
-import {act, newPlayer, newRoom, startRound, validName, view,penalizeUno} from './engine.js';
+import {act, newPlayer, newRoom, startRound, validName, view,penalizeUno,removePlayer} from './engine.js';
+import {CHAT_LIMIT,chatMessage} from './chat-history.js';
 
 export const IDLE_LIMIT = 20 * 60 * 1000;
 export const TURN_DURATION = 30 * 1000;
 export const UNO_DURATION = 2500;
-export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry', 'seal-scream', 'seal-kiss', 'seal-sulk', 'seal-smug'];
+export const EMOTES = ['😂', '😭', '😏', '😡', '😮', '❤️', '👏', '💀', 'seal', 'seal-tongue', 'seal-happy', 'seal-cry', 'seal-scream', 'seal-kiss', 'seal-sulk', 'seal-smug','bmo-laugh','bmo-okay','bmo-shock','bmo-cry','bmo-smug','bmo-cheer'];
 
 export class RoomAuthority {
   constructor(room, name, token, {now = Date.now, saved,capacity=2,mode='online',rules='classic'} = {}) {
@@ -14,6 +15,7 @@ export class RoomAuthority {
     this.revision = saved?.revision ?? 0;
     this.lastActive = saved?.lastActive ?? now();
     this.lastMessages = new Map();
+    this.messages=(saved?.messages??[]).map(chatMessage).filter(Boolean).slice(-CHAT_LIMIT);
     this.remaining = saved?.remaining ?? null;
     this.state.turnDeadline ??= null;
     this.state.pendingDraw ??= null;
@@ -63,7 +65,15 @@ export class RoomAuthority {
     if (!emote && (typeof text !== 'string' || !text.trim() || [...text.trim()].length > 120)) throw new Error('Mesaj 1–120 karakter olmalı.');
     this.lastMessages.set(index, this.now());
     this.touch();
-    return {id: crypto.randomUUID(), player: index, name: this.state.players[index].name, text: emote || text.trim().replace(/[\x00-\x1f]/g, ' '), emote: !!emote};
+    return this.rememberMessage({id: crypto.randomUUID(), player: index, name: this.state.players[index].name, text: emote || text.trim().replace(/[\x00-\x1f]/g, ' '), emote: !!emote,at:this.now()});
+  }
+
+  rememberMessage(message){this.messages.push(message);if(this.messages.length>CHAT_LIMIT)this.messages.shift();return message;}
+  leave(index){
+    const wasTurn=this.state.turn===index,player=removePlayer(this.state,index);
+    this.lastMessages.clear();this.revision++;this.touch();
+    if(wasTurn)this.restartTurn();
+    return this.rememberMessage({id:crypto.randomUUID(),name:player.name,text:`${player.name} masadan ayrıldı.`,system:true,at:this.now()});
   }
 
   restartTurn() {this.state.turnDeadline = this.state.phase === 'playing' ? this.now() + TURN_DURATION : null; this.remaining = null;}
@@ -95,7 +105,7 @@ export class RoomAuthority {
     return penalizeUno(this.state);
   }
   snapshot(index) {return {state: structuredClone(view(this.state, index)), version: this.revision, serverNow:this.now()};}
-  checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining};}
+  checkpoint() {return {state: this.state, revision: this.revision, lastActive: this.lastActive, remaining:this.remaining,unoRemaining:this.unoRemaining,messages:this.messages};}
   touch() {this.lastActive = this.now();}
   expired() {return this.now() - this.lastActive >= IDLE_LIMIT;}
 }

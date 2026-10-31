@@ -31,6 +31,27 @@ export function validName(name, type='player') {
 export function newPlayer(name,token) {return {name:validName(name),token,hand:[],score:0,wins:0,seen:Date.now(),ready:false,uno:false};}
 export function newRoom(name, player, {capacity=2,mode='online',rules='classic'}={}) {return {name:validName(name,'room'),capacity:mode==='group'?6:[2,3,4,5,6].includes(capacity)?capacity:2,mode,rules:rules==='special'?'special':'classic',insights:[],players:[player],phase:'waiting',round:0,turn:0,direction:1,drawnId:null,pendingDraw:null,finishOrder:[],deck:[],pile:[],color:null,log:[],seq:0,vulnerable:null,unoDeadline:null,winner:null,lastMove:null,lastUnoPenalty:null,lastUnoCall:null};}
 export function nextPlayer(s,index=s.turn,steps=1) {const n=s.players.length;return ((index+(s.direction??1)*steps)%n+n)%n;}
+export function removePlayer(s,index){
+  const player=s.players[index];if(!player)throw new Error('Oyuncu bulunamadı.');
+  const wasTurn=s.turn===index,next=wasTurn?nextPlayer(s,index):s.turn;
+  const remap=value=>value==null?null:value===index?null:value>index?value-1:value;
+  s.players.splice(index,1);
+  if(player.hand.length)s.deck=shuffle([...s.deck,...player.hand]);
+  s.turn=remap(next)??0;
+  if(wasTurn)s.drawnId=null;
+  s.winner=remap(s.winner);s.finishOrder=(s.finishOrder??[]).filter(i=>i!==index).map(remap);
+  if(s.pendingDraw&&Number.isInteger(s.pendingDraw.source)){
+    const source=remap(s.pendingDraw.source);
+    if(source===null)delete s.pendingDraw.source;else s.pendingDraw.source=source;
+  }
+  s.insights=(s.insights??[]).filter(x=>x.viewer!==index&&s.players.some(p=>p.hand.some(c=>c.id===x.cardId))).map(x=>({...x,viewer:remap(x.viewer)}));
+  for(const key of ['lastUnoCall','lastUnoPenalty'])if(s[key])s[key]=s[key].player===index?null:{...s[key],player:remap(s[key].player)};
+  s.vulnerable=null;s.unoDeadline=null;s.lastMove=null;
+  if(s.phase==='finished'&&s.winner===null)s.phase='waiting';
+  for(const p of s.players)p.ready=false;
+  log(s,`${player.name} masadan ayrıldı.`);
+  return player;
+}
 function log(s,text) {s.log.unshift({id:++s.seq,text,time:Date.now()});s.log=s.log.slice(0,12);}
 function take(s,n) {
   const out=[];

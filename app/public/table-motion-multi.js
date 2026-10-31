@@ -23,6 +23,9 @@ export class MultiTableMotion extends TableMotion {
     this.compact=matchMedia('(max-width:700px), (pointer:coarse)').matches;
     const generation=this.generation,plan=planTransition(previous,state),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(!cardLayoutChanged(previous,state,plan)){this.updateInteraction(state,{blocked:true,present});this.syncReveals(state);return;}
+    if(previous&&(previous.me!==state.me||previous.players.map(p=>p.name).join('\u0000')!==state.players.map(p=>p.name).join('\u0000'))){
+      for(const rival of this.rivals.values())rival.container.replaceChildren();this.rivals.clear();
+    }
     const placements=seating(state),narrow=matchMedia('(max-width:700px)').matches;
     for(const {index,seat}of placements){let rival=this.rivals.get(index);if(!rival){rival={nodes:new Map()};this.rivals.set(index,rival);}rival.container=this.seats[seat].hand;rival.seat=seat;}
     const beforeOwn=this.capture(this.own),beforeOther=new Map([...this.rivals].map(([index,r])=>[index,this.capture(r.nodes)]));

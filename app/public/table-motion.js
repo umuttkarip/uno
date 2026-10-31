@@ -28,7 +28,7 @@ export function planTransition(previous,next) {
     if(next.lastMove.effect==='gift'&&remaining>0&&Number.isInteger(target))add(actor,target,1);
     if(next.lastMove.effect==='rotate'&&remaining>0)for(let from=0;from<count;from++)add(from,(from+(next.direction??1)+count)%count,previous.players[from].count-(from===actor?1:0));
   }
-  const opponents=next.players.flatMap((p,index)=>index===next.me?[]:[{index,count:p.count,oldCount:deal?0:previous?.players[index]?.count??0,played:opponentPlayed&&next.lastMove.player===index}]).map(p=>({...p,added:Math.max(0,p.count-p.oldCount+(p.played?1:0)-transfers.filter(t=>t.to===p.index).reduce((n,t)=>n+t.count,0)+transfers.filter(t=>t.from===p.index).reduce((n,t)=>n+t.count,0))}));
+  const opponents=next.players.flatMap((p,index)=>index===next.me?[]:[{index,count:p.count,oldCount:deal?0:(p.name===undefined?previous?.players[index]:previous?.players.find(old=>old.name===p.name))?.count??0,played:opponentPlayed&&next.lastMove.player===index}]).map(p=>({...p,added:Math.max(0,p.count-p.oldCount+(p.played?1:0)-transfers.filter(t=>t.to===p.index).reduce((n,t)=>n+t.count,0)+transfers.filter(t=>t.from===p.index).reduce((n,t)=>n+t.count,0))}));
   return {
     deal,topChanged,ownPlayed,opponentPlayed,transfers,
     added:self.hand.filter(c=>!beforeIds.has(c.id)),

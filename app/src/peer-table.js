@@ -7,7 +7,7 @@ const read=(key,storage)=>{try{return JSON.parse(storage.getItem(key));}catch{re
 const save=(key,value,storage)=>{try{storage.setItem(key,JSON.stringify(value));}catch{}};
 const erase=(key,storage)=>{try{storage.removeItem(key);}catch{}};
 const ICE={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
-export const tableSessionKey=room=>storageKey('uno-v9:'+roomKey(room));
+export const tableSessionKey=room=>storageKey('uno-v10:'+roomKey(room));
 export class TableConnection {
   constructor(callbacks,{Peer:PeerType=Peer,Bus=SocketBus,now=Date.now,commandTimeout=2500,storage=globalThis.sessionStorage}={}){Object.assign(this,callbacks,{PeerType,Bus,now,commandTimeout,storage});this.closed=false;this.links=new Map();this.pending=new Map();this.receipts=new Map();this.seenMessages=new Set();this.retiredEpochs=new Set();this.sequence=0;this.lastSequence=-1;this.reconnects=0;this.version=0;this.nodeId=crypto.randomUUID();this.epoch=crypto.randomUUID();}
   async enter(name,room,{rules='classic'}={}){
@@ -25,10 +25,10 @@ export class TableConnection {
   claim(){
     if(this.closed)return;const peer=this.makePeer(this.hostId);
     peer.on('open',()=>{
-      if(this.closed||peer!==this.peer)return;this.host=true;const saved=this.previous?.host?this.previous.saved:null;
+      if(this.closed||peer!==this.peer)return;this.host=true;this.claimedAt=this.now();const saved=this.previous?.host?this.previous.saved:null;
       this.authority=new RoomAuthority(this.room,this.name,this.token,{saved,mode:'group',rules:this.rules});
       for(const receipt of this.previous?.receipts??[])this.receipts.set(receipt.id,receipt);
-      peer.on('connection',conn=>this.accept(conn));this.publish();this.finishEntry();
+      peer.on('connection',conn=>this.accept(conn));this.publish();this.onHistory?.(this.authority.messages);this.finishEntry();
     });
     peer.on('error',error=>{
       if(this.closed||peer!==this.peer)return;
@@ -59,28 +59,43 @@ export class TableConnection {
     const lost=()=>{const link=this.links.get(token);if(this.closed||link?.direct!==conn)return;link.direct=null;if(!this.bus.ready){link.seen=0;this.publish();}};conn.on('close',lost);conn.on('error',lost);
   }
   hostMessage(data,source){
-    if(!this.authority||!this.valid(data))return;let link,index;
+    if(!this.authority||this.handingOff||this.finishing||!this.valid(data))return;let link,index;
     try{
       if(data.type==='discover'){this.bus.send({from:this.hostId,to:source.nodeId,data:{type:'host'}});return;}
       if(data.type==='pulse'&&!this.links.has(data.token)){const player=this.authority.state.players.find((p,i)=>i>0&&p.token===data.token);if(player)return this.hostMessage({...data,type:'join',name:player.name},source);}
       if(data.type==='join'){
         index=this.authority.join(data.name,data.token);if(index===0)throw Error('Bu oyuncu başka bir sekmede açık.');
-        link=this.links.get(data.token)??{};if(link.nodeId!==source.nodeId||data.recover){const old=link.direct;link.direct=null;old?.close();}Object.assign(link,{token:data.token,nodeId:source.nodeId,seen:this.now()});if(source.direct)link.direct=source.direct;this.links.set(data.token,link);this.publish();return;
+        link=this.links.get(data.token)??{};if(link.nodeId!==source.nodeId||data.recover){const old=link.direct;link.direct=null;old?.close();}Object.assign(link,{token:data.token,nodeId:source.nodeId,seen:this.now()});if(source.direct)link.direct=source.direct;this.links.set(data.token,link);this.publish();this.sendLink(link,{type:'history',messages:this.authority.messages});return;
       }
       const token=source.token??data.token;link=this.links.get(token);if(!link||link.nodeId!==source.nodeId)return;link.seen=this.now();index=this.authority.state.players.findIndex(p=>p.token===token);if(index<1)return;
       if(data.type==='pulse'){this.sendLink(link,{type:'pulse'});return;}
       if(data.type==='leave'){
-        if(this.authority.state.phase==='waiting'){this.authority.state.players.splice(index,1);this.links.delete(token);for(const p of this.authority.state.players)p.ready=false;this.authority.revision++;this.publish();}
-        else this.finishClose('Masa kapandı.',true);return;
+        this.depart(index);return;
       }
       if(typeof data.id!=='string')return;
       const receipt=this.receipts.get(token+':'+data.id);if(receipt){this.sendState(link,data.id);return;}
       if(data.type==='action'){if(!this.allPresent())throw Error('Oyuncu bekleniyor.');this.authority.play(index,data.command,data.version);}
-      else if(data.type==='message'){const message=this.authority.message(index,data.message);this.deliverMessage(message);for(const other of this.links.values())this.sendLink(other,{type:'message',message});}
+      else if(data.type==='message'){this.broadcastMessage(this.authority.message(index,data.message));}
       else return;
       const id=token+':'+data.id;this.receipts.set(id,{id});if(this.receipts.size>100)this.receipts.delete(this.receipts.keys().next().value);
       this.publish(data.id,token);
     }catch(error){link??={nodeId:source.nodeId,direct:source.direct};if(link.token)this.sendState(link);this.sendLink(link,{type:'error',ack:data.id,message:error.message});}
+  }
+  broadcastMessage(message){this.deliverMessage(message);for(const link of this.links.values())this.sendLink(link,{type:'message',message});}
+  depart(index){
+    const s=this.authority.state,player=s.players[index];if(!player)return;
+    if(s.phase!=='waiting'&&s.players.length<=2){this.broadcastMessage({id:crypto.randomUUID(),name:player.name,text:`${player.name} masadan ayrıldı.`,system:true,at:this.now()});this.finishClose(`${player.name} masadan ayrıldı.`,true);return;}
+    const message=this.authority.leave(index),link=this.links.get(player.token);this.links.delete(player.token);
+    this.broadcastMessage(message);this.publish();link?.direct?.close();
+  }
+  handoff(data){
+    if(this.transferId===data.id||!data.saved?.state?.players?.some(p=>p.token===this.token))return;
+    this.transferId=data.id;this.previous={host:data.next===this.token,saved:data.saved,receipts:data.receipts};
+    save(this.storageKey,{name:this.name,token:this.token,...this.previous,at:this.now()},this.storage);
+    if(this.hostEpoch)this.retiredEpochs.add(this.hostEpoch);
+    this.joined=false;this.presence(false);clearTimeout(this.connectTimer);this.connecting=false;
+    const conn=this.conn;this.conn=null;conn?.close();this.peer?.destroy();this.host=undefined;
+    if(this.previous.host)this.claimTimer=setTimeout(()=>this.claim(),200);else this.becomeGuest();
   }
   allPresent(){return this.authority.state.players.every((p,i)=>i===0||this.now()-(this.links.get(p.token)?.seen??-Infinity)<6500);}
   syncPresence(){const s=this.authority.state;let changed=false;for(let i=0;i<s.players.length;i++){const online=i===0||this.now()-(this.links.get(s.players[i].token)?.seen??-Infinity)<6500;if(s.players[i].online!==online){s.players[i].online=online;changed=true;}}this.joined=this.allPresent();if(this.joined)this.authority.resumeTurn();else this.authority.pauseTurn();this.presence(this.joined);return changed;}
@@ -98,17 +113,25 @@ export class TableConnection {
       this.hostEpoch=data.epoch;this.lastSequence=data.sequence;this.joined=true;this.version=data.version;this.lastSnapshot=data;this.presence(data.state.players.every(p=>p.online));
       save(this.storageKey,{name:this.name,token:this.token,host:false,at:this.now()},this.storage);this.onState?.(data);this.finishEntry();
     }else if(data.type==='message')this.deliverMessage(data.message);
+    else if(data.type==='history')this.onHistory?.(data.messages??[]);
+    else if(data.type==='handoff')this.handoff(data);
     else if(data.type==='error'){if(data.ack)this.settle(data.ack,data.message);else if(this.rejectEntry)this.fail(data.message);else this.onError?.(data.message);}
     else if(data.type==='leave')this.finishClose(data.message??'Masa kapandı.');
   }
   deliverMessage(message){if(!message||this.seenMessages.has(message.id))return;this.seenMessages.add(message.id);if(this.seenMessages.size>100)this.seenMessages.delete(this.seenMessages.values().next().value);this.onMessage?.(message);}
   async action(command){if(this.closed||!this.joined)throw Error('Bağlantı yenileniyor.');if(this.host){this.authority.play(0,command,this.version);this.publish();}else return this.command({type:'action',command,version:this.version});}
-  async message(message){if(this.closed||!this.joined)throw Error('Bağlantı yenileniyor.');if(this.host){const item=this.authority.message(0,message);this.deliverMessage(item);for(const link of this.links.values())this.sendLink(link,{type:'message',message:item});this.saveHost();}else return this.command({type:'message',message});}
+  async message(message){if(this.closed||!this.joined)throw Error('Bağlantı yenileniyor.');if(this.host){this.broadcastMessage(this.authority.message(0,message));this.saveHost();}else return this.command({type:'message',message});}
   command(data){const id=crypto.randomUUID();return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{this.settle(id,'Bağlantı yenileniyor.');this.presence(false);this.recover();},this.commandTimeout);this.pending.set(id,{resolve,reject,timer});if(!this.sendHost({...data,id,token:this.token})){this.settle(id,'Bağlantı yenileniyor.');this.recover();}});}
   settle(id,error){const pending=this.pending.get(id);if(!pending)return;clearTimeout(pending.timer);this.pending.delete(id);error?pending.reject(Error(error)):pending.resolve();}
   tick(){
     if(this.closed)return;
-    if(this.host){if(this.authority.expired()){this.finishClose('Masa kapandı.',true);return;}const changed=this.syncPresence(),turn=this.joined&&this.authority.expireTurn();if(changed||turn)this.publish();for(const link of this.links.values())this.sendLink(link,{type:'pulse'});}
+    if(this.host){
+      if(this.handingOff||this.finishing)return;if(this.authority.expired()){this.finishClose('Masa kapandı.',true);return;}
+      // A brief disconnection/reload keeps its seat; an absent guest cannot hold the game forever.
+      const absent=this.authority.state.players.findIndex((p,i)=>i>0&&this.now()-(this.links.get(p.token)?.seen??this.claimedAt)>30000);
+      if(absent>=0){this.depart(absent);if(this.closed||this.finishing)return;}
+      const changed=this.syncPresence(),turn=this.joined&&this.authority.expireTurn();if(changed||turn)this.publish();for(const link of this.links.values())this.sendLink(link,{type:'pulse'});
+    }
     else if(this.host===false){if(this.joined&&this.now()-this.lastHostSeen>3500)this.recover();else if(!this.joined)this.joinHost();else this.sendHost({type:'pulse',token:this.token});if(this.joined&&this.now()-this.lastHostSeen>6500)this.presence(false);this.connectHost();}
     this.reconnectSignaling();
   }
@@ -117,7 +140,20 @@ export class TableConnection {
   valid(data){try{return data&&typeof data==='object'&&JSON.stringify(data).length<1048576;}catch{return false;}}
   finishEntry(){clearTimeout(this.entryTimer);this.resolveEntry?.();this.resolveEntry=null;this.rejectEntry=null;}
   fail(message){if(this.closed)return;const reject=this.rejectEntry;this.rejectEntry=null;this.resolveEntry=null;this.shutdown();if(reject)reject(Error(message));else this.onClose?.(message);}
-  finishClose(message,broadcast=false){if(broadcast)for(const link of this.links.values())this.sendLink(link,{type:'leave',message});this.shutdown();erase(this.storageKey,this.storage);this.onClose?.(message);}
-  leave(){if(this.host){for(const link of this.links.values())this.sendLink(link,{type:'leave',message:'Masa kapandı.'});}else this.sendHost({type:'leave',token:this.token});this.shutdown();erase(this.storageKey,this.storage);}
-  shutdown(){if(this.closed)return;this.closed=true;for(const key of ['clock','entryTimer','connectTimer','signalTimer','claimTimer'])clearInterval(this[key]);for(const id of this.pending.keys())this.settle(id,'Bağlantı kesildi.');this.bus?.close();for(const link of this.links.values())link.direct?.close();this.conn?.close();this.peer?.destroy();globalThis.window?.removeEventListener('online',this.restore);globalThis.window?.removeEventListener('pageshow',this.restore);globalThis.document?.removeEventListener('visibilitychange',this.restore);}
+  finishClose(message,broadcast=false){
+    if(broadcast){if(this.finishing)return;this.finishing=true;for(const link of this.links.values())this.sendLink(link,{type:'leave',message});this.closeTimer=setTimeout(()=>this.finishClose(message),100);return;}
+    this.shutdown();erase(this.storageKey,this.storage);this.onClose?.(message);
+  }
+  async leave(){
+    if(this.closed)return;
+    if(this.host&&this.authority.state.players.length>2){
+      this.handingOff=true;const message=this.authority.leave(0),s=this.authority.state;
+      const packet={type:'handoff',id:crypto.randomUUID(),next:s.players[0].token,saved:structuredClone(this.authority.checkpoint()),receipts:[...this.receipts.values()]};
+      for(const link of this.links.values()){this.sendLink(link,{type:'message',message});this.sendLink(link,packet);}
+    }else if(this.host){this.broadcastMessage({id:crypto.randomUUID(),name:this.name,text:`${this.name} masadan ayrıldı.`,system:true,at:this.now()});for(const link of this.links.values())this.sendLink(link,{type:'leave',message:`${this.name} masadan ayrıldı.`});}
+    else this.sendHost({type:'leave',token:this.token});
+    // Allow the queued departure/handoff frame to leave before closing its channel.
+    await new Promise(resolve=>setTimeout(resolve,100));this.shutdown();erase(this.storageKey,this.storage);
+  }
+  shutdown(){if(this.closed)return;this.closed=true;for(const key of ['clock','entryTimer','connectTimer','signalTimer','claimTimer','closeTimer'])clearInterval(this[key]);for(const id of this.pending.keys())this.settle(id,'Bağlantı kesildi.');this.bus?.close();for(const link of this.links.values())link.direct?.close();this.conn?.close();this.peer?.destroy();globalThis.window?.removeEventListener('online',this.restore);globalThis.window?.removeEventListener('pageshow',this.restore);globalThis.document?.removeEventListener('visibilitychange',this.restore);}
 }

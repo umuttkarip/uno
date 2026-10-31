@@ -15,7 +15,13 @@ export const EXPRESSIONS = [
   {code:'seal-scream',name:'Çığlık',file:'seal-scream.webp',sticker:true},
   {code:'seal-kiss',name:'Öpücük',file:'seal-kiss.webp',sticker:true},
   {code:'seal-sulk',name:'Tripli',file:'seal-sulk.webp',sticker:true},
-  {code:'seal-smug',name:'Muzip',file:'seal-smug.webp',sticker:true}
+  {code:'seal-smug',name:'Muzip',file:'seal-smug.webp',sticker:true},
+  {code:'bmo-laugh',name:'Gülen BMO',file:'bmo-laugh.webp',sticker:true},
+  {code:'bmo-okay',name:'Onaylayan BMO',file:'bmo-okay.webp',sticker:true},
+  {code:'bmo-shock',name:'Şaşkın BMO',file:'bmo-shock.webp',sticker:true},
+  {code:'bmo-cry',name:'Ağlayan BMO',file:'bmo-cry.webp',sticker:true},
+  {code:'bmo-smug',name:'Muzip BMO',file:'bmo-smug.webp',sticker:true},
+  {code:'bmo-cheer',name:'Kutlayan BMO',file:'bmo-cheer.webp',sticker:true}
 ];
 export function expression(code) {return EXPRESSIONS.find(item=>item.code===code);}
 export function expressionImage(code) {
