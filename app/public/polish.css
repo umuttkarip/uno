@@ -1,13 +1,4 @@
 /* Cards keep their DOM nodes and their full printed color on every turn. */
-.login{overflow-y:auto;align-items:safe center}
-.active-players{margin-top:18px;padding-top:16px;border-top:1px solid #f0f4df20;font-size:13px}
-.active-players-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;color:#c6d1c3}
-.active-players h2{margin:0;font-size:12px;line-height:1.5;font-weight:500}
-.active-players [data-count]{font-size:12px;font-variant-numeric:tabular-nums}
-.active-players ul{display:flex;flex-wrap:wrap;gap:8px 18px;list-style:none;padding:0;margin:0}
-.active-players li{display:flex;align-items:baseline;gap:7px;min-width:0;max-width:100%;overflow-wrap:anywhere;line-height:1.5}
-.active-players li:before{content:"";width:5px;height:5px;border-radius:50%;background:#b9d4a8;flex:none;align-self:center}
-.active-players p{margin:0;color:#bbcbbd;font-size:12px;line-height:1.5}
 .match{width:100%;min-width:0;grid-template-columns:minmax(0,1fr)}
 .self-zone,.opponent-zone,.center-zone{min-width:0;max-width:100%}
 .hand-scroll{min-width:0;max-width:100%}

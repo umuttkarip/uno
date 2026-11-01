@@ -11,10 +11,8 @@ import {mountAppearance} from './appearance.js';
 import {readStats,rememberPlayer,recordResult} from '../src/scores.js';
 import {storageKey} from '../src/environment.js';
 import {ChatHistory} from '../src/chat-history.js';
-import {mountActivePlayers} from './active-players.js';
 
 const $=id=>document.getElementById(id);
-const activePlayers=mountActivePlayers($('active-players'));
 let connection,state,busy=false,entering=false,moving=false,pendingCard,pendingPlay,resultRound=-1;
 let present=true,suppressClickUntil=0,clockOffset=0,processing=false,generation=0;
 let queue=[],chatAnimation,chatGeneration=0,chatReady=false,sending=false;
@@ -90,7 +88,6 @@ function showLogin(message=''){
   connection?.shutdown();connection=null;state=null;chatHistory=null;busy=false;entering=false;moving=false;sending=false;pendingCard=null;pendingPlay=null;present=true;resultRound=-1;
   motion.reset();
   $('login').hidden=false;$('match').hidden=true;$('match').dataset.motion='settled';$('leave').hidden=true;$('enter').disabled=false;$('entry-error').textContent=message;
-  void activePlayers.refresh();
   $('score-toggle').hidden=true;$('lobby-chat').hidden=true;setScores(false);
   document.body.dataset.players='0';
   appearance.setBusy(false);renderHistory();
@@ -140,7 +137,6 @@ async function drain(){
     const snapshot=queue.shift();
     const previous=state;state=snapshot.state;
     if(!state)continue;
-    if(!$('login').hidden)activePlayers.pause();
     $('login').hidden=true;$('match').hidden=false;$('leave').hidden=false;
     if(previous&&(previous.round!==state.round||state.phase!=='finished'))$('result-dialog').close();
     if(pendingPlay&&!state.playable.includes(pendingPlay.cardId))cancelPlay();
