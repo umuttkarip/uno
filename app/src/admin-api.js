@@ -9,7 +9,8 @@ async function adminAuthorized(request,env,now){
   if(parts.length!==3||!env.UNO_ADMIN_SIGNING_KEY||!/^\d+$/.test(parts[0])||Number(parts[0])<=now||Number(parts[0])>now+13*3600000)return false;
   return adminEqual(parts[2],await adminSignature(parts[0]+'.'+parts[1],env.UNO_ADMIN_SIGNING_KEY));
 }
-async function adminSettings(env){const row=await env.DB.prepare('SELECT value FROM uno_admin_settings WHERE key = ?').bind('kissWild4').first();return {kissWild4:row?row.value==='true':true};}
+const adminFeatureDefaults={kissWild4:true,darlingRemove:true};
+async function adminSettings(env){return Object.fromEntries(await Promise.all(Object.entries(adminFeatureDefaults).map(async([key,fallback])=>{const row=await env.DB.prepare('SELECT value FROM uno_admin_settings WHERE key = ?').bind(key).first();return[key,row?row.value==='true':fallback];})));}
 export async function adminApi(request,env,{now=Date.now}={}){
   const origin=request.headers.get('Origin'),url=new URL(request.url),path=url.pathname,at=now();
   const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Origin',...(adminOrigins.has(origin)?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Max-Age':'86400'}:{})};
@@ -45,8 +46,9 @@ export async function adminApi(request,env,{now=Date.now}={}){
       return json({settings:await adminSettings(env),rooms:results.map(row=>({...row,participants:JSON.parse(row.participants_json),players:JSON.parse(row.players_json),participants_json:undefined,players_json:undefined}))});
     }
     if(path==='/admin-api/v1/settings'&&request.method==='POST'){
-      if(typeof body.kissWild4!=='boolean')throw adminProblem('Ayar okunamadı.');
-      await env.DB.prepare('INSERT INTO uno_admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('kissWild4',String(body.kissWild4),at).run();return json({settings:await adminSettings(env)});
+      const keys=Object.keys(adminFeatureDefaults).filter(key=>Object.hasOwn(body,key));
+      if(!keys.length||keys.some(key=>typeof body[key]!=='boolean'))throw adminProblem('Ayar okunamadı.');
+      for(const key of keys)await env.DB.prepare('INSERT INTO uno_admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind(key,String(body[key]),at).run();return json({settings:await adminSettings(env)});
     }
     throw adminProblem('Sayfa bulunamadı.',404);
   }catch(error){return json({error:error.status?error.message:'İşlem tamamlanamadı.'},error.status??500);}

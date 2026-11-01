@@ -85,6 +85,22 @@ function finishRound(s,index) {
   const gain=s.players.reduce((total,other,i)=>total+(i===index?0:other.hand.reduce((n,c)=>n+points(c),0)),0);p.score+=gain;p.wins++;s.roundPoints=gain;s.vulnerable=null;s.unoDeadline=null;
   log(s,`${p.name} eli kazandı! +${gain} puan.`);
 }
+export function removeHandCard(s,index,cardId) {
+  const p=s.players[index],position=p?.hand.findIndex(c=>c.id===cardId);
+  if(s.phase!=='playing'||position===undefined||position<0)return null;
+  const [card]=p.hand.splice(position,1);
+  // Keep the deck intact without playing the removed card or its effect.
+  s.deck.unshift(card);p.uno=false;
+  if(s.drawnId===card.id)s.drawnId=null;
+  s.insights=(s.insights??[]).filter(x=>x.cardId!==card.id);
+  if(s.lastUnoCall?.player===index)s.lastUnoCall=null;
+  s.lastMove={type:'remove',player:index,card:card.id,seq:++s.seq};
+  if(!p.hand.length){
+    s.finishOrder??=[];if(!s.finishOrder.includes(index))s.finishOrder.push(index);
+    if(!s.pendingDraw)finishRound(s,index);
+  }
+  return card.id;
+}
 export function penalizeUno(s) {
   // UNO is an optional announcement. Clear penalty metadata from older games.
   s.vulnerable=null;s.unoDeadline=null;s.lastUnoPenalty=null;

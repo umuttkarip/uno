@@ -12,11 +12,13 @@ async function setup(t){
 }
 test('admin requires a server-verified password and signed unexpired token; public config exposes no room names',async t=>{
  const{call,login,advance}=await setup(t);assert.equal((await call('dashboard')).status,401);assert.equal((await call('login',{body:{password:'wrong'}})).status,401);
- const token=await login();assert.equal((await call('dashboard',{token})).status,200);assert.equal((await call('dashboard',{token:token.slice(0,-1)+'x'})).status,401);assert.deepEqual((await call('config')).data,{kissWild4:true});assert.equal((await call('config',{origin:'https://untrusted.invalid'})).status,403);
+ const token=await login();assert.equal((await call('dashboard',{token})).status,200);assert.equal((await call('dashboard',{token:token.slice(0,-1)+'x'})).status,401);assert.deepEqual((await call('config')).data,{kissWild4:true,darlingRemove:true});assert.equal((await call('config',{origin:'https://untrusted.invalid'})).status,403);
  advance(13*3600000);assert.equal((await call('dashboard',{token})).status,401);
 });
 test('settings require admin access and propagate through the minimal public config',async t=>{
- const{call,login}=await setup(t);assert.equal((await call('settings',{body:{kissWild4:false}})).status,401);const token=await login();assert.equal((await call('settings',{token,body:{kissWild4:false}})).status,200);assert.deepEqual((await call('config')).data,{kissWild4:false});
+ const{call,login}=await setup(t);assert.equal((await call('settings',{body:{kissWild4:false}})).status,401);const token=await login();assert.equal((await call('settings',{token,body:{kissWild4:false}})).status,200);assert.deepEqual((await call('config')).data,{kissWild4:false,darlingRemove:true});
+ assert.equal((await call('settings',{token,body:{darlingRemove:false}})).status,200);assert.deepEqual((await call('config')).data,{kissWild4:false,darlingRemove:false});assert.equal((await call('settings',{token,body:{darlingRemove:'true'}})).status,400);
+ assert.equal((await call('settings',{token,body:{kissWild4:true,darlingRemove:true}})).status,200);assert.deepEqual((await call('config')).data,{kissWild4:true,darlingRemove:true});
 });
 test('room records retain past participants, hide test tables and secrets, and reject another reporting key',async t=>{
  const{call,login}=await setup(t),id=crypto.randomUUID(),reportKey=crypto.randomUUID(),base={id,reportKey,name:'23',players:[{name:'Umut',wins:0},{name:'Sude',wins:1}],phase:'playing',round:1};assert.equal((await call('rooms',{body:base})).status,200);
@@ -27,7 +29,7 @@ test('repeated wrong passwords are rate limited',async t=>{const{call}=await set
 test('admin reporting is absent from headless engine tests and never waits in the action path',()=>{const bridge=new AdminBridge({state:{}});assert.equal(bridge.enabled,false);assert.equal(bridge.observe(),undefined);bridge.stop();});
 test('ordinary card moves send no extra room reports and reporting contains neither cards nor chat',async t=>{
  const calls=[],authority={chatId:'test-room',reportKey:'test-key',features:{},state:{name:'Masa',mode:'group',rules:'classic',phase:'playing',round:1,turn:0,players:[{name:'A',wins:0,hand:[{id:'card'}]}]}};
- const bridge=new AdminBridge(authority,{enabled:true,fetch:async(url,options)=>{calls.push({url,options});return{ok:true,json:async()=>({kissWild4:true})};}});t.after(()=>bridge.stop());bridge.observe();await new Promise(resolve=>setTimeout(resolve,180));
+ const bridge=new AdminBridge(authority,{enabled:true,fetch:async(url,options)=>{calls.push({url,options});return{ok:true,json:async()=>({kissWild4:true,darlingRemove:false})};}});t.after(()=>bridge.stop());bridge.observe();await new Promise(resolve=>setTimeout(resolve,180));assert.deepEqual(authority.features,{kissWild4:true,darlingRemove:false});
  authority.state.turn=1;authority.state.players[0].hand.push({id:'drawn'});assert.equal(bridge.observe(),undefined);await new Promise(resolve=>setTimeout(resolve,170));
  const reports=calls.filter(c=>c.url.endsWith('rooms'));assert.equal(reports.length,1);const report=JSON.parse(reports[0].options.body);assert.deepEqual(report.players,[{name:'A',wins:0}]);assert.equal(JSON.stringify(report).includes('drawn'),false);assert.equal(JSON.stringify(report).includes('hand'),false);assert.equal(bridge.observe(true),undefined);
 });

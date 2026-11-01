@@ -5,7 +5,7 @@ export class AdminBridge {
     this.authority=authority;this.fetch=transport;this.enabled=enabled&&typeof transport==='function';if(!this.enabled)return;
     void this.settings();this.timer=setInterval(()=>void this.settings(),30000);
   }
-  async settings(){try{const response=await this.fetch(ADMIN_API+'config',{signal:AbortSignal.timeout(4000)});if(response.ok){const settings=await response.json();if(typeof settings.kissWild4==='boolean')this.authority.features.kissWild4=settings.kissWild4;}}catch{}}
+  async settings(){try{const response=await this.fetch(ADMIN_API+'config',{signal:AbortSignal.timeout(4000)});if(response.ok){const settings=await response.json();for(const key of ['kissWild4','darlingRemove'])if(typeof settings[key]==='boolean')this.authority.features[key]=settings[key];}}catch{}}
   observe(closed=false){
     if(!this.enabled)return;const s=this.authority.state;
     const report={id:this.authority.chatId,reportKey:this.authority.reportKey,name:s.name,scope:DESIGN_PREVIEW?'test':'main',mode:s.mode,rules:s.rules,phase:closed?'closed':s.phase,round:s.round,players:s.players.map(p=>({name:p.name,wins:p.wins}))},signature=JSON.stringify(report);

@@ -1,6 +1,6 @@
 import {act, newPlayer, newRoom, startRound, validName, view,penalizeUno,removePlayer} from './engine.js';
 import {CHAT_LIMIT,chatMessage} from './chat-history.js';
-import {DEFAULT_FEATURES,kissWild4} from './privileges.js';
+import {DEFAULT_FEATURES,kissWild4,darlingRemove} from './privileges.js';
 
 export const IDLE_LIMIT = 20 * 60 * 1000;
 export const TURN_DURATION = 30 * 1000;
@@ -72,7 +72,10 @@ export class RoomAuthority {
     if (!emote && (typeof text !== 'string' || !text.trim() || [...text.trim()].length > 120)) throw new Error('Mesaj 1–120 karakter olmalı.');
     this.lastMessages.set(index, this.now());
     this.touch();
-    if(!emote&&kissWild4(this.state,index,text,this.features))this.revision++;
+    if(!emote&&(kissWild4(this.state,index,text,this.features)||darlingRemove(this.state,index,text,this.features))){
+      this.revision++;
+      if(this.state.phase!=='playing')this.restartTurn();
+    }
     return this.rememberMessage({id: crypto.randomUUID(), player: index, name: this.state.players[index].name, text: emote || text.trim().replace(/[\x00-\x1f]/g, ' '), emote: !!emote,at:this.now()});
   }
 
