@@ -20,6 +20,16 @@ export async function adminApi(request,env,{now=Date.now}={}){
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     if(!env.DB)throw adminProblem('Kayıtlar şu an açılamıyor.',503);
     if(path==='/admin-api/v1/config'&&request.method==='GET')return json(await adminSettings(env));
+    if(path==='/admin-api/v1/players'&&request.method==='GET'){
+      const scope=url.searchParams.get('scope')==='test'?'test':'main';
+      const {results}=await env.DB.prepare('SELECT players_json FROM uno_room_history WHERE scope = ? AND phase != ? AND updated_at > ? ORDER BY updated_at DESC LIMIT 100').bind(scope,'closed',at-75000).all();
+      const names=new Map();
+      for(const row of results)for(const player of JSON.parse(row.players_json)){
+        const name=String(player.name??'').trim().normalize('NFC');
+        if(name&&!player.bot&&player.online!==false&&!names.has(name.toLocaleLowerCase('tr-TR')))names.set(name.toLocaleLowerCase('tr-TR'),name);
+      }
+      return json({players:[...names.values()].sort((a,b)=>a.localeCompare(b,'tr')).map(name=>({name}))});
+    }
     let body={};if(request.method==='POST'){const raw=await request.text();if(raw.length>16384)throw adminProblem('İstek çok büyük.',413);try{body=JSON.parse(raw);}catch{throw adminProblem('İstek okunamadı.');}if(!body||typeof body!=='object'||Array.isArray(body))throw adminProblem('İstek okunamadı.');}
     if(path==='/admin-api/v1/login'&&request.method==='POST'){
       if(!env.UNO_ADMIN_PASSWORD_SHA256||!env.UNO_ADMIN_SIGNING_KEY)throw adminProblem('Yönetim girişi hazır değil.',503);
@@ -34,7 +44,7 @@ export async function adminApi(request,env,{now=Date.now}={}){
       if(!/^[\w-]{20,80}$/.test(body.id??'')||!/^[\w-]{20,80}$/.test(body.reportKey??'')||typeof body.name!=='string'||!Array.isArray(body.players)||body.players.length>6)throw adminProblem('Masa kaydı okunamadı.');
       const existing=await env.DB.prepare('SELECT report_hash, participants_json FROM uno_room_history WHERE id = ?').bind(body.id).first(),hash=await adminHash(body.reportKey);
       if(existing&&!adminEqual(existing.report_hash,hash))throw adminProblem('Masa kaydı doğrulanamadı.',403);
-      const players=body.players.map(p=>({name:String(p.name??'').slice(0,256),wins:Math.max(0,Math.min(100000,Number(p.wins)||0))}));
+      const players=body.players.map(p=>({name:String(p.name??'').slice(0,256),wins:Math.max(0,Math.min(100000,Number(p.wins)||0)),bot:p.bot===true,online:p.online!==false}));
       const participants=[...new Set([...(existing?JSON.parse(existing.participants_json):[]),...players.map(p=>p.name)])].slice(-100);
       const scope=body.scope==='test'?'test':'main',phase=['waiting','playing','finished','closed'].includes(body.phase)?body.phase:'waiting',round=Math.max(0,Math.min(100000,Number(body.round)||0));
       await env.DB.prepare('INSERT INTO uno_room_history (id, name, scope, mode, rules, phase, round, participants_json, players_json, report_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET phase = excluded.phase, round = excluded.round, participants_json = excluded.participants_json, players_json = excluded.players_json, updated_at = excluded.updated_at').bind(body.id,body.name.slice(0,512),scope,body.mode==='computer'?'computer':'group',body.rules==='special'?'special':'classic',phase,round,JSON.stringify(participants),JSON.stringify(players),hash,at,at).run();
